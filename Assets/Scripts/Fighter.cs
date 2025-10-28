@@ -48,52 +48,10 @@ public class Fighter : MonoBehaviour
         }
     }
 
-    /// <summary>
-    /// 
-    /// </summary>
-    /// <param name="intermediaryNodesForLayers"></param>
-    /// <returns>The output nodes in no specific order</returns>
-    List<Node> generateNetwork(List<int> intermediaryNodesForLayers)
-    {
-        List<InputNode> inputNodes = new();
-        inputType[] inputTypes = (inputType[])Enum.GetValues(typeof(inputType));
-        // always generate same amount of input and output notes (quantity of enum values)
-        foreach (inputType input in inputTypes)
-        {
-            InputNode newNode = new InputNode();
-            newNode.setupInputNode(this, input);
-            inputNodes.Add(newNode);
-        }
-
-        List<Node> previousLayer = new();
-        previousLayer.AddRange(inputNodes);
-        foreach (int layerSize in intermediaryNodesForLayers)
-        {
-            List<Node> newLayer = createIntermediaryLayer(previousLayer, layerSize);
-            previousLayer.Clear();
-            previousLayer.AddRange(newLayer);
-        }
-
-        List<Node> outputNodes = new();
-        outputType[] outputTypes = (outputType[])Enum.GetValues(typeof(outputType));
-        outputNodes.AddRange(createIntermediaryLayer(previousLayer, outputTypes.Length));
-
-        return outputNodes;
-    }
-
-    List<Node> createIntermediaryLayer(List<Node> previousLayer, int layerSize)
-    {
-        List<Node> layerAcc = new();
-        for (int i = 0; i < layerSize; i++)
-        {
-            layerAcc.Add(new Node(previousLayer));
-        }
-        return layerAcc;
-    }
 
     void makeNetworkForFighter(float resourcesUsed)
     {
-        List<Node> newOutputNodes = generateNetwork(new List<int> { 50, 50 });
+        List<Node> newOutputNodes = NodeManaging.generateNetwork(new List<int> { 50, 50 }, this);
         outputType[] outputs = (outputType[])Enum.GetValues(typeof(outputType));
 
         for (int i = 0; i < outputs.Length; i++)
@@ -128,7 +86,7 @@ public class Fighter : MonoBehaviour
         memory1, memory2, memory3
     }
 
-    enum outputType
+    public enum outputType
     {
 
     }
@@ -202,6 +160,7 @@ public class Fighter : MonoBehaviour
         // some sort of moveset data structure, or keep it simple and static?
         lastSpottedActions[actionType] = ACTION_RECENCY_COUNTED;
     }
+
 
 
     // inputs
