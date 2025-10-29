@@ -1,10 +1,13 @@
 using System;
 using System.Collections;
 using System.Collections.Generic;
+using System.IO;
+using System.Text;
+using System.Xml.Serialization;
 using Unity.VisualScripting;
 using UnityEngine;
 
-public class NodeManaging : MonoBehaviour
+public class NodeManaging
 {
     /// <summary>
     /// 
@@ -28,7 +31,7 @@ public class NodeManaging : MonoBehaviour
         foreach (int layerSize in intermediaryNodesForLayers)
         {
             List<Node> newLayer = createIntermediaryLayer(previousLayer, layerSize);
-            previousLayer.Clear();
+            previousLayer = new();
             previousLayer.AddRange(newLayer);
         }
 
@@ -49,22 +52,33 @@ public class NodeManaging : MonoBehaviour
         return layerAcc;
     }
 
-    public static void mutateWholeNetwork(List<Node> outputLayer, float magnitude)
+    List<List<Node>> allNodeLayers(List<Node> outputLayer)
     {
-        foreach (Node n in outputLayer)
+        List<List<Node>> networkAcc = new();
+
+        List<Node> currentLayer = new();
+        currentLayer.AddRange(outputLayer);
+        while(currentLayer.Count > 0)
         {
-            n.adjustInputWeights(magnitude);
+            networkAcc.Insert(0, currentLayer);
+            List<Node> processNextLayer = currentLayer[0].previousLayerNodes();
+
+            currentLayer = new();
+
+            currentLayer.AddRange(processNextLayer);
         }
 
-        // all nodes are connected to entire previous layer so can use first ref
-        List<Node> priorLayer = outputLayer[0].previousLayerNodes();
-        if (priorLayer[0] is InputNode)
+        return networkAcc;
+    }
+
+    public void mutateWholeNetwork(List<Node> outputLayer, float magnitude)
+    {
+        foreach (List<Node> layer in allNodeLayers(outputLayer))
         {
-            return;
-        }
-        else
-        {
-            mutateWholeNetwork(priorLayer, magnitude);
+            foreach (Node n in layer)
+            {
+                n.adjustInputWeights(magnitude);
+            }            
         }
     }
 
@@ -74,26 +88,104 @@ public class NodeManaging : MonoBehaviour
         applySerializedNetwork(networkString, applyTo);
     }
 
-    class serializableNetwork
+    [Serializable]
+    public class serializableNetwork
     {
-        public List<serializableNode> previousLayerWeights = new();
+        public List<List<serializableNode>> nodeLayers;
+    }
+    [Serializable]
+    public class serializableNode
+    {
+        public List<float> previousLayerWeights;
+        public string forInputType;
+        public string forOutputType;
     }
 
-    class serializableNode
-    {
-        public List<float> previousLayerWeights = new();
 
+    public string serializeNetwork(Dictionary<Fighter.outputType, Node> outputLayer)
+    {
+        List<Node> nodeList = new();
+        foreach (var item in outputLayer)
+        {
+            nodeList.Add(item.Value);
+        }
+        return serializeNetwork(nodeList);
     }
 
-    string serializeNetwork(List<Node> outputLayer)
-    {
-        List<float> inputWeights = new();
 
-        return "";
+    public string serializeNetwork(List<Node> outputLayer)
+    {
+        serializableNetwork accSerial = new serializableNetwork();
+        accSerial.nodeLayers = serializeDeepLayers(outputLayer);
+
+        // https://stackoverflow.com/questions/8334527/save-listt-to-xml-file
+        StringWriter stringWriter = new StringWriter(new StringBuilder());
+        new XmlSerializer(typeof(serializableNetwork)).Serialize(stringWriter, accSerial);
+        return stringWriter.ToString(); ;
     }
 
-    void applySerializedNetwork(string networkString, Fighter applyTo)
+    List<serializableNode> serializeLayer(List<Node> layer)
     {
+        List<serializableNode> acc = new();
+        foreach (Node n in layer)
+        {
+            serializableNode addToAcc = new();
+            addToAcc.previousLayerWeights = new();
+            foreach (float weight in n.previousLayerWeights())
+            {
+                addToAcc.previousLayerWeights.Add(weight);
+            }
+            if(n is InputNode)
+            {
+                addToAcc.forInputType = (n as InputNode).inputType();
+            }
+            acc.Add(addToAcc);
+        }
+        return acc;
+    }
 
+    List<List<serializableNode>> serializeDeepLayers(List<Node> outputLayer)
+    {
+        List<List<serializableNode>> accLayers = new();
+
+        foreach (List<Node> layer in allNodeLayers(outputLayer))
+        {
+            accLayers.Add(serializeLayer(layer));
+        }
+
+        return accLayers;
+    }
+
+    void applySerializedNetwork(string nodeNetworkString, Fighter applyTo)
+    {
+        StringReader stringReader = new StringReader(nodeNetworkString);
+        XmlSerializer serializer = new XmlSerializer(typeof(serializableNetwork));
+        serializableNetwork deserializedNetwork = (serializableNetwork)serializer.Deserialize(stringReader);
+
+        List<Node> currentLayer = new();
+        // first input layers which are slightly different
+        foreach (Fighter.inputType ipt in Enum.GetValues(typeof(Fighter.inputType)))
+        {
+            InputNode newNode = new InputNode();
+            newNode.setupInputNode(applyTo, ipt);
+            currentLayer.Add(newNode);
+            // do some sort of correlation check to see if input nodes have changed
+            // and give warning TODO
+        }
+        deserializedNetwork.nodeLayers.RemoveAt(0);
+
+        foreach (List<serializableNode> layer in deserializedNetwork.nodeLayers)
+        {
+            List<Node> thisLayer = new();
+            foreach (serializableNode n in layer)
+            {
+                Node newNode = new Node(currentLayer, n.previousLayerWeights);
+                thisLayer.Add(newNode);
+            }
+            currentLayer = new();
+            currentLayer.AddRange(thisLayer);
+        }
+
+        // add output layer reference to fighter
     }
 }

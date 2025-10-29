@@ -25,4 +25,13 @@ public class InputNode : Node
         return host.checkInput(forInputType);
     }
 
+    public override List<float> previousLayerWeights()
+    {
+        return new();
+    }
+
+    public string inputType()
+    {
+        return forInputType.ToString();
+    }
 }

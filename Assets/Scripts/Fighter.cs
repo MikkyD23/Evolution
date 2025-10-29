@@ -24,6 +24,16 @@ public class Fighter : MonoBehaviour
         rigidBody = GetComponent<Rigidbody2D>();
 
         makeNetworkForFighter(0);
+
+        List<Node> formattedOutputNodes = new();
+        foreach (var n in outputNodes)
+        {
+            formattedOutputNodes.Add(n.Value);
+        }
+
+        new NodeManaging().mutateWholeNetwork(formattedOutputNodes, 0.3f);
+
+        print(new NodeManaging().serializeNetwork(outputNodes));
     }
 
     class BattleStats
@@ -51,13 +61,8 @@ public class Fighter : MonoBehaviour
 
     void makeNetworkForFighter(float resourcesUsed)
     {
-        List<Node> newOutputNodes = NodeManaging.generateNetwork(new List<int> { 50, 50 }, this);
-        outputType[] outputs = (outputType[])Enum.GetValues(typeof(outputType));
-
-        for (int i = 0; i < outputs.Length; i++)
-        {
-            outputNodes.Add(outputs[i], newOutputNodes[i]);
-        }
+        List<Node> newOutputNodes = NodeManaging.generateNetwork(new List<int> { 5, 5 }, this);
+        loadExistingNetwork(newOutputNodes);
     }
 
 
@@ -88,12 +93,29 @@ public class Fighter : MonoBehaviour
 
     public enum outputType
     {
+        shootRanged
+        // quickMelee 
+        // heavyTargetedMelee (slow) (best damage)
+        // wideMelee (slow) (good if enemy maybe moves a little, or we don't want to use the intelligence to aim/predict)
+        // block
+        // grab
+        // walk (can attack)
+        // run (cannot attack)
+
+        // move direction (can combine directions)
+        // forward, left, right, back
+
+        // attack direction (relative to move direction)
+        // forward, left, right, back
+
+        // callback output that goes directly back to input (memory)
+
 
     }
 
     public bool checkInput(inputType forType)
     {
-
+        return false;
         switch (forType)
         {
             case inputType.hostileDetectedForward:
@@ -152,7 +174,7 @@ public class Fighter : MonoBehaviour
 
     Vector2 hostileDetectedLocation()
     {
-
+        return Vector2.zero;
     }
 
     void perceivedEnemyAction(inputType actionType)
@@ -161,7 +183,15 @@ public class Fighter : MonoBehaviour
         lastSpottedActions[actionType] = ACTION_RECENCY_COUNTED;
     }
 
+    void loadExistingNetwork(List<Node> newOutputNodes)
+    {
+        outputType[] outputs = (outputType[])Enum.GetValues(typeof(outputType));
 
+        for (int i = 0; i < outputs.Length; i++)
+        {
+            outputNodes.Add(outputs[i], newOutputNodes[i]);
+        }
+    }
 
     // inputs
     // hostile detected direction (relative to move direction)

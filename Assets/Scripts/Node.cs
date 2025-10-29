@@ -9,6 +9,16 @@ public class Node
     Dictionary<Node, float> inputWeights = new();
 
 
+    // creating nodes from file/cloned from serialized
+    public Node(List<Node> previousLayerNodes, List<float> loadWeights)
+    {
+        for (int i = 0; i < previousLayerNodes.Count; i++)
+        {
+            inputWeights.Add(previousLayerNodes[i], loadWeights[i]);
+        }
+    }
+
+    // creating brand new nodes
     public Node(List<Node> previousLayerNodes)
     {
         foreach (Node n in previousLayerNodes)
@@ -39,9 +49,9 @@ public class Node
 
     public void adjustInputWeights(float magnitude)
     {
-        foreach (var item in inputWeights)
+        foreach (Node item in previousLayerNodes())
         {
-            inputWeights[item.Key] += Random.Range(-magnitude, magnitude);
+            inputWeights[item] += Random.Range(-magnitude, magnitude);
         }
     }
 
@@ -60,5 +70,12 @@ public class Node
         return nodeAcc;
     }
 
-    // public List<Float> previousLayerWeights() // see if needed for serialization or can do it easier
+    public virtual List<float> previousLayerWeights() {
+        List<float> accList = new();
+        foreach (var item in inputWeights)
+        {
+            accList.Add(item.Value);
+        }
+        return accList;
+    }
 }
