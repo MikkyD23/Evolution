@@ -8,6 +8,23 @@ public class Fighter : MonoBehaviour
     const float BASE_HP = 100f;
     float currentHp = BASE_HP;
 
+    const float BASE_ENERGY = 100f;
+    float currentEnergy = 100f;
+    const float ENERGY_REGEN_SECOND = 7f;
+
+    const float LIGHT_ENERGY_COST = 5f;
+    const float HEAVY_ENERGY_COST = 10f;
+    const float LIGHT_RECHARGE = 0.3f;
+    const float HEAVY_RECHARGE = 1f;
+    const float BLOCK_DMG_RESIST = 0.6f;
+    float currentRechargeLeft = 0f;
+
+    const float LIGHT_DAMAGE = 10f;
+    const float RANGED_DAMAGE = LIGHT_DAMAGE * 0.6f;
+    const float HEAVY_DAMAGE = LIGHT_DAMAGE * 2f;
+
+    BattleStats thisBattleStats = new();
+
     Dictionary<outputType, Node> outputNodes = new();
 
     List<bool> memories = new List<bool> { false, false, false };
@@ -25,6 +42,14 @@ public class Fighter : MonoBehaviour
 
         makeNetworkForFighter(0);
 
+        mutateSelf(0.2f);
+
+
+        resetForBattle();
+    }
+
+    public void mutateSelf(float magnitude)
+    {
         List<Node> formattedOutputNodes = new();
         foreach (var n in outputNodes)
         {
@@ -32,22 +57,26 @@ public class Fighter : MonoBehaviour
         }
 
         new NodeManaging().mutateWholeNetwork(formattedOutputNodes, 0.3f);
+    }
 
+    public void debugPrintXml()
+    {
         print(new NodeManaging().serializeNetwork(outputNodes));
+
     }
 
     class BattleStats
     {
-        float damageDealt = 0;
-        float damageReceived = 0;
-        float distanceMoved = 0;
-        bool won = false;
+        public float damageDealt = 0;
+        public float damageReceived = 0;
+        public float distanceMoved = 0;
+        public bool won = false;
 
         /// <summary>
         /// Used to determine rank/how well we did to decide if we need to change/ get eliminated
         /// </summary>
         /// <returns></returns>
-        float rewardScore()
+        public float rewardScore()
         {
             float accScore = 0;
             accScore += won ? 100f : 0;
@@ -56,6 +85,11 @@ public class Fighter : MonoBehaviour
             accScore += distanceMoved * 0.05f;
             return accScore;
         }
+    }
+
+    public float rewardScore()
+    {
+        return thisBattleStats.rewardScore();
     }
 
 
@@ -71,7 +105,7 @@ public class Fighter : MonoBehaviour
         // hostile detected direction (relative to move direction)
         hostileDetectedForward, hostileDetectedLeft, hostileDetectedRight, hostileDetectedBack,
         // direction aim helpers
-        hostileDetectedSlightlyLeft, hostileDetectedSlightlyRight, hostileDetectedStraightOn,
+        hostileDetectedSlightlyLeft, hostileDetectedSlightlyRight,
 
         // distance away from target
         hostileDetectedClose, hostileDetectedMedium, hostileDetectedFar,
@@ -93,44 +127,74 @@ public class Fighter : MonoBehaviour
 
     public enum outputType
     {
-        shootRanged
-        // quickMelee 
-        // heavyTargetedMelee (slow) (best damage)
-        // wideMelee (slow) (good if enemy maybe moves a little, or we don't want to use the intelligence to aim/predict)
-        // block
-        // grab
-        // walk (can attack)
-        // run (cannot attack)
+        shootRanged, quickMelee, heavyTargetedMelee, wideMelee, block, grab,
+        walk, run,
 
-        // move direction (can combine directions)
-        // forward, left, right, back
+        // move direction (can combine directions) (relative to look)
+        moveForward, moveLeft, moveRight, moveBack,
 
-        // attack direction (relative to move direction)
-        // forward, left, right, back
+        // look/attack direction
+        lookLeft, lookHardLeft, lookRight, lookHardRight,
 
         // callback output that goes directly back to input (memory)
+        memory1, memory2, memory3
 
+    }
 
+    public void pollForOutput(float secondsPassed = 0.25f)
+    {
+        // expecting this to be called every quarter second
+        currentEnergy = Mathf.Max(currentEnergy + (ENERGY_REGEN_SECOND * secondsPassed), BASE_ENERGY);
+
+        // positive goes left
+        float directionLook = 0f;
+        directionLook += isOutputting(outputType.lookLeft) ? 1f : 0;
+        directionLook += isOutputting(outputType.lookHardLeft) ? 1.5f : 0;
+        directionLook -= isOutputting(outputType.lookRight) ? 1f : 0;
+        directionLook -= isOutputting(outputType.lookHardRight) ? 1.5f : 0;
+
+        directionLook *= secondsPassed;
+        rigidBody.AddTorque(directionLook);
+
+        Vector2 directionMove = Vector2.zero;
+        directionMove += isOutputting(outputType.moveForward) ? transform.up : Vector2.zero;
+        directionMove += isOutputting(outputType.moveRight) ? transform.right : Vector2.zero;
+        directionMove += isOutputting(outputType.moveLeft) ? -transform.right : Vector2.zero;
+        directionMove += isOutputting(outputType.moveBack) ? -transform.up : Vector2.zero;
+
+        directionMove *= isOutputting(outputType.run) ? 2f : isOutputting(outputType.walk) ? 1f : 0f;
+        rigidBody.AddForce(directionMove);
+
+        currentRechargeLeft -= secondsPassed;
+        if (currentRechargeLeft <= 0 && isOutputting(outputType.shootRanged))
+        {
+            currentRechargeLeft += LIGHT_RECHARGE;
+        }
+        // allow it to go slightly negative this frame so more consistent with long tick lengths
+        currentRechargeLeft = Mathf.Max(currentRechargeLeft, 0f); 
+
+        memories[0] = isOutputting(outputType.memory1);
+        memories[1] = isOutputting(outputType.memory2);
+        memories[2] = isOutputting(outputType.memory3);
+
+        thisBattleStats.distanceMoved += (rigidBody.velocity.magnitude * secondsPassed);
     }
 
     public bool checkInput(inputType forType)
     {
-        return false;
         switch (forType)
         {
             case inputType.hostileDetectedForward:
-                break;
+                return checkLos(transform.up);
             case inputType.hostileDetectedLeft:
-                break;
+                return checkLos(-transform.right);
             case inputType.hostileDetectedRight:
-                break;
+                return checkLos(transform.right);
             case inputType.hostileDetectedBack:
-                break;
-            case inputType.hostileDetectedSlightlyLeft:
+                return checkLos(-transform.up);
+            case inputType.hostileDetectedSlightlyLeft: // TODO
                 break;
             case inputType.hostileDetectedSlightlyRight:
-                break;
-            case inputType.hostileDetectedStraightOn:
                 break;
             case inputType.hostileDetectedClose:
                 break;
@@ -147,7 +211,8 @@ public class Fighter : MonoBehaviour
             case inputType.hostileRecentlyWalk:
             case inputType.hostileRecentlyRun:
             case inputType.hostileRecentlyHurt:
-                return lastSpottedActions[forType] >= 0;
+                return false; // TODO
+                //return lastSpottedActions[forType] >= 0;
             case inputType.mySpeedStationary:
                 return rigidBody.velocity.magnitude <= 0.1f;
             case inputType.mySpeedSlow:
@@ -170,6 +235,30 @@ public class Fighter : MonoBehaviour
                 print($"Missing input: {forType}!!");
                 throw new Exception($"Missing input: {forType}!!");
         }
+
+        return false;
+    }
+
+    bool checkLos(Vector2 direction)
+    {
+        const float LOS_RANGE = 7f;
+
+        RaycastHit2D hit = Physics2D.Raycast(transform.position, direction, LOS_RANGE);
+        bool noticedTarget = hit.transform.gameObject.GetComponent<Fighter>() != null;
+        // make sure not detecting self
+
+        return noticedTarget;
+
+    }
+
+    bool checkWithinRange()
+    {
+        return false;
+    }
+
+    bool isOutputting(outputType forOutput)
+    {
+        return outputNodes[forOutput].isOutputting();
     }
 
     Vector2 hostileDetectedLocation()
@@ -191,6 +280,22 @@ public class Fighter : MonoBehaviour
         {
             outputNodes.Add(outputs[i], newOutputNodes[i]);
         }
+    }
+
+    public void resetForBattle()
+    {
+        thisBattleStats = new();
+        currentHp = BASE_HP;
+        currentEnergy = BASE_ENERGY;
+        currentRechargeLeft = 0f;
+    }
+
+    public Fighter reproduce()
+    {
+        Fighter newFighter = Instantiate(this.gameObject).GetComponent<Fighter>();
+        new NodeManaging().deepCloneNetwork(outputNodes, newFighter);
+
+        return newFighter;
     }
 
     // inputs

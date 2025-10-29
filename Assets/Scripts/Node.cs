@@ -33,7 +33,7 @@ public class Node
     }
 
 
-    protected virtual bool isOutputting()
+    public virtual bool isOutputting()
     {
         float percentActivated = 0f;
         foreach (var item in inputWeights)

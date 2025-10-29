@@ -20,7 +20,7 @@ public class InputNode : Node
 
 
 
-    protected override bool isOutputting()
+    public override bool isOutputting()
     {
         return host.checkInput(forInputType);
     }
