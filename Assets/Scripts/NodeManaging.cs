@@ -82,12 +82,6 @@ public class NodeManaging
         }
     }
 
-    public void deepCloneNetwork(Dictionary<Fighter.outputType, Node> layer, Fighter applyTo)
-    {
-        deepCloneNetwork(dictionaryToList(layer), applyTo);
-    }
-
-
     public void deepCloneNetwork(List<Node> originalOutputLayer, Fighter applyTo)
     {
         string networkString = serializeNetwork(originalOutputLayer);
@@ -106,23 +100,6 @@ public class NodeManaging
         public string forInputType;
         public string forOutputType;
     }
-
-    List<Node> dictionaryToList(Dictionary<Fighter.outputType, Node> layer)
-    {
-        List<Node> nodeList = new();
-        foreach (var item in layer)
-        {
-            nodeList.Add(item.Value);
-        }
-        return nodeList;
-
-    }
-
-    public string serializeNetwork(Dictionary<Fighter.outputType, Node> outputLayer)
-    {
-        return serializeNetwork(dictionaryToList(outputLayer));
-    }
-
 
     public string serializeNetwork(List<Node> outputLayer)
     {

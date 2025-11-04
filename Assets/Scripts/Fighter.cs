@@ -1,6 +1,7 @@
 using System;
 using System.Collections;
 using System.Collections.Generic;
+using System.Linq;
 using UnityEngine;
 
 public class Fighter : MonoBehaviour
@@ -61,7 +62,7 @@ public class Fighter : MonoBehaviour
 
     public void debugPrintXml()
     {
-        print(new NodeManaging().serializeNetwork(outputNodes));
+        print(new NodeManaging().serializeNetwork(outputNodes.Values.ToList()));
 
     }
 
@@ -293,7 +294,7 @@ public class Fighter : MonoBehaviour
     public Fighter reproduce()
     {
         Fighter newFighter = Instantiate(this.gameObject).GetComponent<Fighter>();
-        new NodeManaging().deepCloneNetwork(outputNodes, newFighter);
+        new NodeManaging().deepCloneNetwork(outputNodes.Values.ToList(), newFighter);
 
         return newFighter;
     }
