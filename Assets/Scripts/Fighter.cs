@@ -172,7 +172,7 @@ public class Fighter : MonoBehaviour
         directionMove *= isOutputting(outputType.run) ? 2f : isOutputting(outputType.walk) ? 1f : 0f;
         rigidBody.AddForce(directionMove);
 
-        currentRechargeLeft -= movePower;
+        currentRechargeLeft -= secondsPassed;
         if (currentRechargeLeft <= 0 && isOutputting(outputType.shootRanged))
         {
             currentRechargeLeft += LIGHT_RECHARGE;
