@@ -228,6 +228,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   fighterPrefab: {fileID: 7774588241230360614, guid: ebdca1aae6d10ff4e8de334c4d8cfe80, type: 3}
+  arenaPrefab: {fileID: 0}
 --- !u!1660057539 &9223372036854775807
 SceneRoots:
   m_ObjectHideFlags: 0

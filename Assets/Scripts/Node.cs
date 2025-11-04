@@ -4,7 +4,7 @@ using UnityEngine;
 
 public class Node
 {
-    float STARTING_WEIGHT = 0f; // I guess this is in the middle because it can go negative?
+    float STARTING_WEIGHT = 0.3f; // I guess this is in the middle because it can go negative?
 
     Dictionary<Node, float> inputWeights = new();
 
@@ -38,12 +38,14 @@ public class Node
         float percentActivated = 0f;
         foreach (var item in inputWeights)
         {
-            percentActivated += item.Key.isOutputting() ? item.Value : 0f;
+            percentActivated += item.Key.isOutputting() ? Mathf.Max(item.Value, 0f) : 0f;
             if(percentActivated >= 1f)
             {
+                //Debug.Log($"percentActivated: {percentActivated}");
                 return true;
             }
         }
+        //Debug.Log($"percentActivated: {percentActivated}");
         return false;
     }
 

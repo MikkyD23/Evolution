@@ -1,39 +1,81 @@
 using System.Collections;
 using System.Collections.Generic;
+using System.Reflection;
 using UnityEngine;
 
 public class FighterManager : MonoBehaviour
 {
+    const int POOL_SIZE = 100;
+
     List<Fighter> fightingPool = new();
     [SerializeField] GameObject fighterPrefab;
+    [SerializeField] GameObject arenaPrefab;
 
     private void Awake()
     {
-        for (int i = 0; i < 20; i++)
+        Time.timeScale = 2f;
+        for (int i = 0; i < POOL_SIZE; i++)
         {
             Fighter newFighter = Instantiate(fighterPrefab).GetComponent<Fighter>();
+            newFighter.mutateSelf(10f);
             newFighter.gameObject.SetActive(false);
             fightingPool.Add(newFighter);
         }
 
-        StartCoroutine(startFight());
+        StartCoroutine(startFight(new Vector2(0, 0)));
+        StartCoroutine(startFight(new Vector2(25, 0)));
+        StartCoroutine(startFight(new Vector2(50, 0)));
+        StartCoroutine(startFight(new Vector2(75, 0)));
+
+        StartCoroutine(startFight(new Vector2(0, 25)));
+        StartCoroutine(startFight(new Vector2(25, 25)));
+        StartCoroutine(startFight(new Vector2(50, 25)));
+        StartCoroutine(startFight(new Vector2(75, 25)));
+
+        StartCoroutine(startFight(new Vector2(0, 50)));
+        StartCoroutine(startFight(new Vector2(25, 50)));
+        StartCoroutine(startFight(new Vector2(50, 50)));
+        StartCoroutine(startFight(new Vector2(75, 50)));
+
+        StartCoroutine(startFight(new Vector2(0, 75)));
+        StartCoroutine(startFight(new Vector2(25, 75)));
+        StartCoroutine(startFight(new Vector2(50, 75)));
+        StartCoroutine(startFight(new Vector2(75, 75)));
+
     }
 
-    IEnumerator startFight()
+    private void Update()
     {
-        Fighter fighter1 = fightingPool[0];
-        Fighter fighter2 = fightingPool[1];
+        if (Input.GetKey(KeyCode.Alpha0))
+        {
+            Time.timeScale = 0;
+        }
+        else if (Input.GetKey(KeyCode.Alpha1))
+        {
+            Time.timeScale = 1;
+        }
+        else if (Input.GetKey(KeyCode.Alpha2))
+        {
+            Time.timeScale = 5;
+        }
+        else if (Input.GetKey(KeyCode.Alpha3))
+        {
+            Time.timeScale = 10;
+        }
+    }
 
-        fighter1.gameObject.SetActive(true);
-        fighter2.gameObject.SetActive(true);
+    IEnumerator startFight(Vector2 location)
+    {
+        GameObject arena = Instantiate(arenaPrefab);
+        arena.transform.position = location;
+        Fighter fighter1 = chooseFighter();
+        Fighter fighter2 = chooseFighter();
 
-        fighter1.resetForBattle();
-        fighter2.resetForBattle();
-
-        fighter2.transform.position += new Vector3(0, 5, 0);
+        fighter1.transform.position = location + new Vector2(-2.5f, 0);
+        fighter2.transform.position = location + new Vector2(2.5f, 0);
 
         float tickTime = 0.25f;
-        for (int i = 0; i < 100; i++)
+        for (int i = 0; i < 60; i++)
         {
             yield return new WaitForSeconds(tickTime * 0.5f);
             fighter1.pollForOutput(tickTime);
@@ -49,14 +91,34 @@ public class FighterManager : MonoBehaviour
             loser = fighter2;
         }
 
-        Destroy(loser);
+        print($"winner score: {winner.rewardScore()}. loser score: {loser.rewardScore()}");
+
+        fightingPool.Remove(loser);
+        Destroy(loser.gameObject);
         Fighter newFighter = winner.reproduce();
-        newFighter.mutateSelf(0.05f);
-        fightingPool.Add(newFighter);
+        newFighter.mutateSelf(0.1f);
 
         Debug.Log($"Winner XML:");
         winner.debugPrintXml();
+        newFighter.gameObject.SetActive(false);
+        winner.gameObject.SetActive(false);
+        fightingPool.Remove(winner);
+        fightingPool.Add(winner); // add to end like a queue
+        fightingPool.Add(newFighter);
 
-        yield return new WaitForSeconds(1f);
+        yield return new WaitForSeconds(2f);
+        Destroy(arena);
+        StartCoroutine(startFight(location));
     }
+
+    Fighter chooseFighter()
+    {
+        Fighter chosen = fightingPool[Random.Range(0, fightingPool.Count - 1)];
+        fightingPool.Remove(chosen);
+        chosen.gameObject.SetActive(true);
+        chosen.resetForBattle();
+        return chosen;
+    }
+
+
 }

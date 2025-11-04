@@ -24,6 +24,11 @@ public class Fighter : MonoBehaviour
     const float RANGED_DAMAGE = LIGHT_DAMAGE * 0.6f;
     const float HEAVY_DAMAGE = LIGHT_DAMAGE * 2f;
 
+    const float LOS_RANGE = 14f;
+
+
+    [SerializeField] GameObject bulletPrefab;
+
     BattleStats thisBattleStats = new();
 
     Dictionary<outputType, Node> outputNodes = new();
@@ -42,8 +47,6 @@ public class Fighter : MonoBehaviour
         rigidBody = GetComponent<Rigidbody2D>();
 
         makeNetworkForFighter(0);
-
-        mutateSelf(0.2f);
 
 
         resetForBattle();
@@ -103,10 +106,12 @@ public class Fighter : MonoBehaviour
 
     public enum inputType
     {
+        random1, random2, random3, random4, random5,
         // hostile detected direction (relative to move direction)
         hostileDetectedForward, hostileDetectedLeft, hostileDetectedRight, hostileDetectedBack,
         // direction aim helpers
-        hostileDetectedSlightlyLeft, hostileDetectedSlightlyRight,
+        hostileDetectedSlightlyLeft1, hostileDetectedSlightlyLeft2, hostileDetectedSlightlyLeft3,
+        hostileDetectedSlightlyRight1, hostileDetectedSlightlyRight2, hostileDetectedSlightlyRight3,
 
         // distance away from target
         hostileDetectedClose, hostileDetectedMedium, hostileDetectedFar,
@@ -144,8 +149,9 @@ public class Fighter : MonoBehaviour
 
     public void pollForOutput(float secondsPassed = 0.25f)
     {
+        float movePower = secondsPassed * 10f;
         // expecting this to be called every quarter second
-        currentEnergy = Mathf.Max(currentEnergy + (ENERGY_REGEN_SECOND * secondsPassed), BASE_ENERGY);
+        currentEnergy = Mathf.Max(currentEnergy + (ENERGY_REGEN_SECOND * movePower), BASE_ENERGY);
 
         // positive goes left
         float directionLook = 0f;
@@ -154,7 +160,7 @@ public class Fighter : MonoBehaviour
         directionLook -= isOutputting(outputType.lookRight) ? 1f : 0;
         directionLook -= isOutputting(outputType.lookHardRight) ? 1.5f : 0;
 
-        directionLook *= secondsPassed;
+        directionLook *= movePower;
         rigidBody.AddTorque(directionLook);
 
         Vector2 directionMove = Vector2.zero;
@@ -166,10 +172,11 @@ public class Fighter : MonoBehaviour
         directionMove *= isOutputting(outputType.run) ? 2f : isOutputting(outputType.walk) ? 1f : 0f;
         rigidBody.AddForce(directionMove);
 
-        currentRechargeLeft -= secondsPassed;
+        currentRechargeLeft -= movePower;
         if (currentRechargeLeft <= 0 && isOutputting(outputType.shootRanged))
         {
             currentRechargeLeft += LIGHT_RECHARGE;
+            rangedAttack();
         }
         // allow it to go slightly negative this frame so more consistent with long tick lengths
         currentRechargeLeft = Mathf.Max(currentRechargeLeft, 0f); 
@@ -178,13 +185,23 @@ public class Fighter : MonoBehaviour
         memories[1] = isOutputting(outputType.memory2);
         memories[2] = isOutputting(outputType.memory3);
 
-        thisBattleStats.distanceMoved += (rigidBody.velocity.magnitude * secondsPassed);
+        thisBattleStats.distanceMoved += (rigidBody.velocity.magnitude * movePower);
     }
 
     public bool checkInput(inputType forType)
     {
         switch (forType)
         {
+            case inputType.random1:
+                return UnityEngine.Random.value > 0.5f;
+            case inputType.random2:
+                return UnityEngine.Random.value > 0.5f;
+            case inputType.random3:
+                return UnityEngine.Random.value > 0.5f;
+            case inputType.random4:
+                return UnityEngine.Random.value > 0.5f;
+            case inputType.random5:
+                return UnityEngine.Random.value > 0.5f;
             case inputType.hostileDetectedForward:
                 return checkLos(transform.up);
             case inputType.hostileDetectedLeft:
@@ -193,10 +210,18 @@ public class Fighter : MonoBehaviour
                 return checkLos(transform.right);
             case inputType.hostileDetectedBack:
                 return checkLos(-transform.up);
-            case inputType.hostileDetectedSlightlyLeft: // TODO
-                break;
-            case inputType.hostileDetectedSlightlyRight:
-                break;
+            case inputType.hostileDetectedSlightlyLeft1:
+                return checkLos(Vector2.Lerp(transform.up, -transform.right, 0.2f));
+            case inputType.hostileDetectedSlightlyLeft2:
+                return checkLos(Vector2.Lerp(transform.up, -transform.right, 0.4f));
+            case inputType.hostileDetectedSlightlyLeft3:
+                return checkLos(Vector2.Lerp(transform.up, -transform.right, 0.6f));
+            case inputType.hostileDetectedSlightlyRight1:
+                return checkLos(Vector2.Lerp(transform.up, transform.right, 0.2f));
+            case inputType.hostileDetectedSlightlyRight2:
+                return checkLos(Vector2.Lerp(transform.up, transform.right, 0.4f));
+            case inputType.hostileDetectedSlightlyRight3:
+                return checkLos(Vector2.Lerp(transform.up, transform.right, 0.4f));
             case inputType.hostileDetectedClose:
                 break;
             case inputType.hostileDetectedMedium:
@@ -240,17 +265,49 @@ public class Fighter : MonoBehaviour
         return false;
     }
 
+    void rangedAttack()
+    {
+        GameObject newBullet = Instantiate(bulletPrefab);
+        newBullet.GetComponent<Projectile>().initialise(transform.up, this, RANGED_DAMAGE);
+        newBullet.transform.position = transform.position;
+    }
+
+    public void reportDealtDamage(float damage)
+    {
+        thisBattleStats.damageDealt += damage;
+    }
+
+    public void takeDamage(float damage)
+    {
+        currentHp -= damage;
+        thisBattleStats.damageReceived += damage;
+    }
+
     bool checkLos(Vector2 direction)
     {
-        const float LOS_RANGE = 7f;
 
         RaycastHit2D hit = Physics2D.Raycast(transform.position, direction, LOS_RANGE);
-        bool noticedTarget = hit.transform.gameObject.GetComponent<Fighter>() != null;
+        bool noticedTarget = hit && hit.transform.gameObject.GetComponent<Fighter>() != null;
         // make sure not detecting self
+
+        //Debug.DrawRay(transform.position, direction * LOS_RANGE, noticedTarget ? Color.red : Color.gray, 0.1f);
 
         return noticedTarget;
 
     }
+
+    //RaycastHit2D[] hits = Physics2D.RaycastAll(transform.position, direction, LOS_RANGE);
+    //bool noticedTarget = false;
+    //foreach (RaycastHit2D hit in hits)
+    //{
+    //    Fighter foundFighter = hit.transform.gameObject.GetComponent<Fighter>();
+    //    // make sure not detecting self
+    //    if (foundFighter != null && foundFighter != this)
+    //    {
+    //        noticedTarget = true;
+    //    }
+    //}
+
 
     bool checkWithinRange()
     {
@@ -259,7 +316,9 @@ public class Fighter : MonoBehaviour
 
     bool isOutputting(outputType forOutput)
     {
-        return outputNodes[forOutput].isOutputting();
+        bool outputting = outputNodes[forOutput].isOutputting();
+        //print($"output type: {forOutput} is outputting: {outputting}");
+        return outputting;
     }
 
     Vector2 hostileDetectedLocation()
@@ -289,6 +348,8 @@ public class Fighter : MonoBehaviour
         currentHp = BASE_HP;
         currentEnergy = BASE_ENERGY;
         currentRechargeLeft = 0f;
+
+        transform.rotation = Quaternion.identity;
     }
 
     public Fighter reproduce()
