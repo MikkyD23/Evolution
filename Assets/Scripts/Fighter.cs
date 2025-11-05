@@ -312,25 +312,12 @@ public class Fighter : MonoBehaviour
         bool noticedTarget = hit &&
             hit.transform.gameObject.layer == FIGHTER_LAYER &&
             hit.transform.gameObject.GetComponent<Fighter>() != null;
-        // make sure not detecting self
 
-        Debug.DrawRay(transform.position, direction * LOS_RANGE, noticedTarget ? Color.red : Color.gray, 0.1f);
+        //Debug.DrawRay(transform.position, direction * LOS_RANGE, noticedTarget ? Color.red : Color.gray, 0.1f);
 
         return noticedTarget;
 
     }
-
-    //RaycastHit2D[] hits = Physics2D.RaycastAll(transform.position, direction, LOS_RANGE);
-    //bool noticedTarget = false;
-    //foreach (RaycastHit2D hit in hits)
-    //{
-    //    Fighter foundFighter = hit.transform.gameObject.GetComponent<Fighter>();
-    //    // make sure not detecting self
-    //    if (foundFighter != null && foundFighter != this)
-    //    {
-    //        noticedTarget = true;
-    //    }
-    //}
 
 
     bool checkWithinRange()
