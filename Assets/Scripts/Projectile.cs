@@ -4,7 +4,7 @@ using UnityEngine;
 
 public class Projectile : MonoBehaviour
 {
-    const float SPEED = 150f;
+    const float SPEED = 250f;
     const float LIFETIME = 3f;
 
     Fighter owner;

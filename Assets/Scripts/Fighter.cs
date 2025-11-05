@@ -17,8 +17,8 @@ public class Fighter : MonoBehaviour
 
     const float LIGHT_ENERGY_COST = 5f;
     const float HEAVY_ENERGY_COST = 10f;
-    const float LIGHT_RECHARGE = 0.3f;
-    const float HEAVY_RECHARGE = 1f;
+    const float LIGHT_RECHARGE = 0.5f;
+    const float HEAVY_RECHARGE = LIGHT_RECHARGE * 3f;
     const float BLOCK_DMG_RESIST = 0.6f;
     float currentRechargeLeft = 0f;
 
@@ -86,8 +86,8 @@ public class Fighter : MonoBehaviour
         {
             float accScore = 0;
             accScore += won ? 100f : 0;
-            accScore += damageDealt / BASE_HP;
-            accScore -= (damageReceived / BASE_HP) * 0.5f;
+            accScore += (damageDealt / BASE_HP) * 8f;
+            accScore -= (damageReceived / BASE_HP);
             accScore += distanceMoved * 0.05f;
             return accScore;
         }
@@ -128,6 +128,7 @@ public class Fighter : MonoBehaviour
 
         // Our status
         readyToAttack, recentlyHurt, lowHealth,
+        has1ThirdEnergy, has2ThirdEnergy, has3ThirdEnergy, // or more
 
         // callaback from last time
         memory1, memory2, memory3
@@ -172,13 +173,16 @@ public class Fighter : MonoBehaviour
         directionMove += isOutputting(outputType.moveBack) ? -transform.up : Vector2.zero;
 
         directionMove *= isOutputting(outputType.run) ? 2f : isOutputting(outputType.walk) ? 1f : 0f;
-        rigidBody.AddForce(directionMove);
+        rigidBody.AddForce(directionMove * movePower);
 
         currentRechargeLeft -= secondsPassed;
-        if (currentRechargeLeft <= 0 && isOutputting(outputType.shootRanged))
+        if (isOutputting(outputType.shootRanged) && usedAttackResources(LIGHT_RECHARGE, LIGHT_ENERGY_COST))
         {
-            currentRechargeLeft += LIGHT_RECHARGE;
             rangedAttack();
+        }
+        if(isOutputting(outputType.quickMelee) && usedAttackResources(LIGHT_RECHARGE, LIGHT_ENERGY_COST))
+        {
+
         }
         // allow it to go slightly negative this frame so more consistent with long tick lengths
         currentRechargeLeft = Mathf.Max(currentRechargeLeft, 0f); 
@@ -223,7 +227,7 @@ public class Fighter : MonoBehaviour
             case inputType.hostileDetectedSlightlyRight2:
                 return checkLos(Vector2.Lerp(transform.up, transform.right, 0.4f));
             case inputType.hostileDetectedSlightlyRight3:
-                return checkLos(Vector2.Lerp(transform.up, transform.right, 0.4f));
+                return checkLos(Vector2.Lerp(transform.up, transform.right, 0.6f));
             case inputType.hostileDetectedClose:
                 break;
             case inputType.hostileDetectedMedium:
@@ -247,6 +251,12 @@ public class Fighter : MonoBehaviour
                 return rigidBody.linearVelocity.magnitude >= 0.1f;
             case inputType.mySpeedFast:
                 return rigidBody.linearVelocity.magnitude >= 1f;
+            case inputType.has1ThirdEnergy:
+                return currentEnergy >= BASE_ENERGY / 3f;
+            case inputType.has2ThirdEnergy:
+                return currentEnergy >= (BASE_ENERGY / 3f) * 2;
+            case inputType.has3ThirdEnergy:
+                return currentEnergy >= BASE_ENERGY - 1f;
             case inputType.readyToAttack:
                 break;
             case inputType.recentlyHurt:
@@ -274,6 +284,17 @@ public class Fighter : MonoBehaviour
         newBullet.transform.position = transform.position;
     }
 
+    bool usedAttackResources(float rechargeTime, float energyCost)
+    {
+        if(currentRechargeLeft > 0f || currentEnergy < energyCost)
+        {
+            return false;
+        }
+        currentRechargeLeft += rechargeTime;
+        currentEnergy -= energyCost;
+        return true;
+    }
+
     public void reportDealtDamage(float damage)
     {
         thisBattleStats.damageDealt += damage;
@@ -287,12 +308,13 @@ public class Fighter : MonoBehaviour
 
     bool checkLos(Vector2 direction)
     {
-
         RaycastHit2D hit = Physics2D.Raycast(transform.position, direction, LOS_RANGE);
-        bool noticedTarget = hit && hit.transform.gameObject.GetComponent<Fighter>() != null;
+        bool noticedTarget = hit &&
+            hit.transform.gameObject.layer == FIGHTER_LAYER &&
+            hit.transform.gameObject.GetComponent<Fighter>() != null;
         // make sure not detecting self
 
-        //Debug.DrawRay(transform.position, direction * LOS_RANGE, noticedTarget ? Color.red : Color.gray, 0.1f);
+        Debug.DrawRay(transform.position, direction * LOS_RANGE, noticedTarget ? Color.red : Color.gray, 0.1f);
 
         return noticedTarget;
 

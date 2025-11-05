@@ -5,7 +5,7 @@ using UnityEngine;
 
 public class FighterManager : MonoBehaviour
 {
-    const int POOL_SIZE = 100;
+    const int POOL_SIZE = 20;
 
     List<Fighter> fightingPool = new();
     [SerializeField] GameObject fighterPrefab;
@@ -13,7 +13,6 @@ public class FighterManager : MonoBehaviour
 
     private void Awake()
     {
-        Time.timeScale = 2f;
         for (int i = 0; i < POOL_SIZE; i++)
         {
             Fighter newFighter = Instantiate(fighterPrefab).GetComponent<Fighter>();
@@ -27,20 +26,20 @@ public class FighterManager : MonoBehaviour
         StartCoroutine(startFight(new Vector2(50, 0)));
         StartCoroutine(startFight(new Vector2(75, 0)));
 
-        StartCoroutine(startFight(new Vector2(0, 25)));
-        StartCoroutine(startFight(new Vector2(25, 25)));
-        StartCoroutine(startFight(new Vector2(50, 25)));
-        StartCoroutine(startFight(new Vector2(75, 25)));
+        //StartCoroutine(startFight(new Vector2(0, 25)));
+        //StartCoroutine(startFight(new Vector2(25, 25)));
+        //StartCoroutine(startFight(new Vector2(50, 25)));
+        //StartCoroutine(startFight(new Vector2(75, 25)));
 
-        StartCoroutine(startFight(new Vector2(0, 50)));
-        StartCoroutine(startFight(new Vector2(25, 50)));
-        StartCoroutine(startFight(new Vector2(50, 50)));
-        StartCoroutine(startFight(new Vector2(75, 50)));
+        //StartCoroutine(startFight(new Vector2(0, 50)));
+        //StartCoroutine(startFight(new Vector2(25, 50)));
+        //StartCoroutine(startFight(new Vector2(50, 50)));
+        //StartCoroutine(startFight(new Vector2(75, 50)));
 
-        StartCoroutine(startFight(new Vector2(0, 75)));
-        StartCoroutine(startFight(new Vector2(25, 75)));
-        StartCoroutine(startFight(new Vector2(50, 75)));
-        StartCoroutine(startFight(new Vector2(75, 75)));
+        //StartCoroutine(startFight(new Vector2(0, 75)));
+        //StartCoroutine(startFight(new Vector2(25, 75)));
+        //StartCoroutine(startFight(new Vector2(50, 75)));
+        //StartCoroutine(startFight(new Vector2(75, 75)));
 
     }
 
@@ -98,15 +97,15 @@ public class FighterManager : MonoBehaviour
         Fighter newFighter = winner.reproduce();
         newFighter.mutateSelf(0.1f);
 
-        Debug.Log($"Winner XML:");
-        winner.debugPrintXml();
+        //Debug.Log($"Winner XML:");
+        //winner.debugPrintXml();
         newFighter.gameObject.SetActive(false);
+        yield return new WaitForSeconds(1.5f);
         winner.gameObject.SetActive(false);
-        fightingPool.Remove(winner);
-        fightingPool.Add(winner); // add to end like a queue
+        fightingPool.Add(winner);
         fightingPool.Add(newFighter);
 
-        yield return new WaitForSeconds(2f);
+        yield return new WaitForSeconds(0.5f);
         Destroy(arena);
         StartCoroutine(startFight(location));
     }
