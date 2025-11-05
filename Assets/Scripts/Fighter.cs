@@ -185,7 +185,7 @@ public class Fighter : MonoBehaviour
         memories[1] = isOutputting(outputType.memory2);
         memories[2] = isOutputting(outputType.memory3);
 
-        thisBattleStats.distanceMoved += (rigidBody.velocity.magnitude * movePower);
+        thisBattleStats.distanceMoved += (rigidBody.linearVelocity.magnitude * movePower);
     }
 
     public bool checkInput(inputType forType)
@@ -240,11 +240,11 @@ public class Fighter : MonoBehaviour
                 return false; // TODO
                 //return lastSpottedActions[forType] >= 0;
             case inputType.mySpeedStationary:
-                return rigidBody.velocity.magnitude <= 0.1f;
+                return rigidBody.linearVelocity.magnitude <= 0.1f;
             case inputType.mySpeedSlow:
-                return rigidBody.velocity.magnitude >= 0.1f;
+                return rigidBody.linearVelocity.magnitude >= 0.1f;
             case inputType.mySpeedFast:
-                return rigidBody.velocity.magnitude >= 1f;
+                return rigidBody.linearVelocity.magnitude >= 1f;
             case inputType.readyToAttack:
                 break;
             case inputType.recentlyHurt:
