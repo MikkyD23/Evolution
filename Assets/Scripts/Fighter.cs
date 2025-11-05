@@ -6,6 +6,8 @@ using UnityEngine;
 
 public class Fighter : MonoBehaviour
 {
+    public static readonly int FIGHTER_LAYER = 3;
+
     const float BASE_HP = 100f;
     float currentHp = BASE_HP;
 
