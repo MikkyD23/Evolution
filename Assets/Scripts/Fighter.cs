@@ -28,6 +28,8 @@ public class Fighter : MonoBehaviour
 
     const float LOS_RANGE = 14f;
 
+    const float TURN_SPEED = 7.5f;
+    const float MOVE_SPEED = 20f;
 
     [SerializeField] GameObject bulletPrefab;
 
@@ -39,6 +41,10 @@ public class Fighter : MonoBehaviour
     Rigidbody2D rigidBody;
 
     float ACTION_RECENCY_COUNTED = 1f;
+
+    bool enemyDetectedThisTick = false;
+    Fighter enemyThisFight;
+
     Dictionary<inputType, float> lastSpottedActions = new()
     {
         { inputType.hostileRecentlyShot, 0}
@@ -88,7 +94,7 @@ public class Fighter : MonoBehaviour
             accScore += won ? 100f : 0;
             accScore += (damageDealt / BASE_HP) * 8f;
             accScore -= (damageReceived / BASE_HP);
-            accScore += distanceMoved * 0.05f;
+            accScore += distanceMoved * 0.025f;
             return accScore;
         }
     }
@@ -152,9 +158,9 @@ public class Fighter : MonoBehaviour
 
     public void pollForOutput(float secondsPassed = 0.25f)
     {
-        float movePower = secondsPassed * 10f;
+        setEnemyDetection();
         // expecting this to be called every quarter second
-        currentEnergy = Mathf.Max(currentEnergy + (ENERGY_REGEN_SECOND * movePower), BASE_ENERGY);
+        currentEnergy = Mathf.Max(currentEnergy + (ENERGY_REGEN_SECOND * secondsPassed), BASE_ENERGY);
 
         // positive goes left
         float directionLook = 0f;
@@ -163,7 +169,7 @@ public class Fighter : MonoBehaviour
         directionLook -= isOutputting(outputType.lookRight) ? 1f : 0;
         directionLook -= isOutputting(outputType.lookHardRight) ? 1.5f : 0;
 
-        directionLook *= movePower;
+        directionLook *= secondsPassed * TURN_SPEED;
         rigidBody.AddTorque(directionLook);
 
         Vector2 directionMove = Vector2.zero;
@@ -173,7 +179,7 @@ public class Fighter : MonoBehaviour
         directionMove += isOutputting(outputType.moveBack) ? -transform.up : Vector2.zero;
 
         directionMove *= isOutputting(outputType.run) ? 2f : isOutputting(outputType.walk) ? 1f : 0f;
-        rigidBody.AddForce(directionMove * movePower);
+        rigidBody.AddForce(directionMove * secondsPassed * MOVE_SPEED);
 
         currentRechargeLeft -= secondsPassed;
         if (isOutputting(outputType.shootRanged) && usedAttackResources(LIGHT_RECHARGE, LIGHT_ENERGY_COST))
@@ -191,7 +197,7 @@ public class Fighter : MonoBehaviour
         memories[1] = isOutputting(outputType.memory2);
         memories[2] = isOutputting(outputType.memory3);
 
-        thisBattleStats.distanceMoved += (rigidBody.linearVelocity.magnitude * movePower);
+        thisBattleStats.distanceMoved += (rigidBody.linearVelocity.magnitude * secondsPassed);
     }
 
     public bool checkInput(inputType forType)
@@ -217,17 +223,17 @@ public class Fighter : MonoBehaviour
             case inputType.hostileDetectedBack:
                 return checkLos(-transform.up);
             case inputType.hostileDetectedSlightlyLeft1:
-                return checkLos(Vector2.Lerp(transform.up, -transform.right, 0.2f));
+                return checkLos(Vector2.Lerp(transform.up, -transform.right, 0.2f).normalized);
             case inputType.hostileDetectedSlightlyLeft2:
-                return checkLos(Vector2.Lerp(transform.up, -transform.right, 0.4f));
+                return checkLos(Vector2.Lerp(transform.up, -transform.right, 0.4f).normalized);
             case inputType.hostileDetectedSlightlyLeft3:
-                return checkLos(Vector2.Lerp(transform.up, -transform.right, 0.6f));
+                return checkLos(Vector2.Lerp(transform.up, -transform.right, 0.6f).normalized);
             case inputType.hostileDetectedSlightlyRight1:
-                return checkLos(Vector2.Lerp(transform.up, transform.right, 0.2f));
+                return checkLos(Vector2.Lerp(transform.up, transform.right, 0.2f).normalized);
             case inputType.hostileDetectedSlightlyRight2:
-                return checkLos(Vector2.Lerp(transform.up, transform.right, 0.4f));
+                return checkLos(Vector2.Lerp(transform.up, transform.right, 0.4f).normalized);
             case inputType.hostileDetectedSlightlyRight3:
-                return checkLos(Vector2.Lerp(transform.up, transform.right, 0.6f));
+                return checkLos(Vector2.Lerp(transform.up, transform.right, 0.6f).normalized);
             case inputType.hostileDetectedClose:
                 break;
             case inputType.hostileDetectedMedium:
@@ -308,10 +314,13 @@ public class Fighter : MonoBehaviour
 
     bool checkLos(Vector2 direction)
     {
-        RaycastHit2D hit = Physics2D.Raycast(transform.position, direction, LOS_RANGE);
-        bool noticedTarget = hit &&
-            hit.transform.gameObject.layer == FIGHTER_LAYER &&
-            hit.transform.gameObject.GetComponent<Fighter>() != null;
+        if(!enemyDetectedThisTick)
+        {
+            return false;
+        }
+        const float VECTOR_THRESHOLD = 0.3f;
+        Vector2 enemyDirection = (enemyThisFight.transform.position - transform.position).normalized;
+        bool noticedTarget = Vector2.Distance(direction, enemyDirection) <= VECTOR_THRESHOLD;
 
         //Debug.DrawRay(transform.position, direction * LOS_RANGE, noticedTarget ? Color.red : Color.gray, 0.1f);
 
@@ -332,9 +341,41 @@ public class Fighter : MonoBehaviour
         return outputting;
     }
 
-    Vector2 hostileDetectedLocation()
+    void setEnemyDetection()
     {
-        return Vector2.zero;
+        if(enemyThisFight == null)
+        {
+            findEnemyForThisFight();
+        }
+
+        RaycastHit2D hit = Physics2D.Linecast(transform.position, enemyThisFight.transform.position);
+        enemyDetectedThisTick = hit && hit.transform.gameObject.layer == FIGHTER_LAYER;
+        //print($"detected enemy location: {enemyThisFight.transform.position}. my position = {transform.position}. detected enemy: {enemyDetectedThisTick}");
+    }
+    void findEnemyForThisFight()
+    {
+        Fighter[] allFighters = FindObjectsByType<Fighter>(FindObjectsInactive.Exclude, FindObjectsSortMode.None);
+        Fighter closestEnemy = null;
+        Vector2 currentLocation = transform.position;
+        foreach (Fighter f in allFighters)
+        {
+            if(f == this)
+            {
+                continue;
+            }
+            if(closestEnemy == null ||
+                Vector2.Distance(currentLocation, f.transform.position) <=
+                Vector2.Distance(currentLocation, closestEnemy.transform.position))
+            {
+                closestEnemy = f;
+            }
+        }
+        enemyThisFight = closestEnemy;
+    }
+
+    float enemyDistance()
+    {
+        return Vector2.Distance(transform.position, enemyThisFight.transform.position);
     }
 
     void perceivedEnemyAction(inputType actionType)
@@ -360,6 +401,7 @@ public class Fighter : MonoBehaviour
         currentEnergy = BASE_ENERGY;
         currentRechargeLeft = 0f;
 
+        enemyThisFight = null;
         transform.rotation = Quaternion.identity;
     }
 
