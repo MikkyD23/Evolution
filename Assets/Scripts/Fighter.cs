@@ -4,7 +4,7 @@ using System.Collections.Generic;
 using System.Linq;
 using UnityEngine;
 
-public class Fighter : MonoBehaviour
+public class Fighter : MonoBehaviour, IComparable
 {
     public static readonly int FIGHTER_LAYER = 3;
 
@@ -97,6 +97,23 @@ public class Fighter : MonoBehaviour
             accScore += distanceMoved * 0.025f;
             return accScore;
         }
+    }
+
+    public int CompareTo(object other)
+    {
+        Fighter otherFighter = other as Fighter;
+        float myStats = rewardScore();
+        float otherStats = otherFighter.rewardScore();
+        float difference = otherStats - myStats;
+        if(difference > 0)
+        {
+            return 1;
+        }
+        else if(difference < 0)
+        {
+            return -1;
+        }
+        return 0;
     }
 
     public float rewardScore()
