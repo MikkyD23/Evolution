@@ -4,8 +4,6 @@ using UnityEngine;
 
 public class Node
 {
-    float STARTING_WEIGHT = 0f;
-
     class InputWeight
     {
         public Node node;
@@ -33,9 +31,10 @@ public class Node
     // creating brand new nodes
     public Node(List<Node> previousLayerNodes)
     {
+        float startingWeight = 1f / (float)previousLayerNodes.Count;
         foreach (Node n in previousLayerNodes)
         {
-            inputWeights.Add(new InputWeight(n, STARTING_WEIGHT));
+            inputWeights.Add(new InputWeight(n, startingWeight));
         }
     }
 
@@ -61,10 +60,12 @@ public class Node
 
     public void adjustInputWeights(float magnitude)
     {
+        // setting slightly negative minimum so it doesn't constantly get randomised to a few percent
+        const float MINIMUM_WEIGHT = -0.1f;
         foreach (InputWeight inputWeight in inputWeights)
         {
             inputWeight.weight += Random.Range(-magnitude, magnitude);
-            inputWeight.weight = Mathf.Max(inputWeight.weight, 0f);
+            inputWeight.weight = Mathf.Max(inputWeight.weight, MINIMUM_WEIGHT);
         }
     }
 

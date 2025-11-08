@@ -185,7 +185,7 @@ public class Fighter : MonoBehaviour, IComparable
     {
         setEnemyDetection();
         // expecting this to be called every quarter second
-        currentEnergy = Mathf.Max(currentEnergy + (ENERGY_REGEN_SECOND * secondsPassed), BASE_ENERGY);
+        currentEnergy = Mathf.Min(currentEnergy + (ENERGY_REGEN_SECOND * secondsPassed), BASE_ENERGY);
 
         // positive goes left
         float directionLook = 0f;
@@ -443,31 +443,4 @@ public class Fighter : MonoBehaviour, IComparable
 
         return newFighter;
     }
-
-    // inputs
-    // hostile detected direction (relative to move direction)
-    // forward, left, right, back
-    // close, medium, far (distance away from target)
-    // enemy recently shot, quickMelee, heavyTargetedMelee, wideMelee, block, grab, walk, run
-    // our movement speed/momentum: stationary, slow, fast
-    // readyToAttack, recentlyHurt, lowHealth
-
-    // outputs
-    // shootRanged
-    // quickMelee 
-    // heavyTargetedMelee (slow) (best damage)
-    // wideMelee (slow) (good if enemy maybe moves a little, or we don't want to use the intelligence to aim/predict)
-    // block
-    // grab
-    // walk (can attack)
-    // run (cannot attack)
-
-    // move direction (can combine directions)
-    // forward, left, right, back
-
-    // attack direction (relative to move direction)
-    // forward, left, right, back
-
-    // callback output that goes directly back to input (memory)
-
 }

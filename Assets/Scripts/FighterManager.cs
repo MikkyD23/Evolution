@@ -5,7 +5,7 @@ using UnityEngine;
 public class FighterManager : MonoBehaviour
 {
     const int POOL_SIZE = 40;
-    public static readonly float MUTATION_AMOUNT = 0.1f;
+    const float MUTATION_AMOUNT = 0.05f;
     const float TICK_TIME = 0.25f;
     const int BATTLE_TICKLENGTH = 100;
 
@@ -22,7 +22,7 @@ public class FighterManager : MonoBehaviour
         {
             Fighter newFighter = Instantiate(fighterPrefab).GetComponent<Fighter>();
             newFighter.makeEmptyNetworkForFighter(0);
-            newFighter.mutateSelf(MUTATION_AMOUNT * 20);
+            newFighter.mutateSelf(MUTATION_AMOUNT * 10);
             newFighter.gameObject.SetActive(false);
             allFighters.Add(newFighter);
         }
