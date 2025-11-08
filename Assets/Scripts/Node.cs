@@ -4,9 +4,21 @@ using UnityEngine;
 
 public class Node
 {
-    float STARTING_WEIGHT = 0.3f; // I guess this is in the middle because it can go negative?
+    float STARTING_WEIGHT = 0f;
 
-    Dictionary<Node, float> inputWeights = new();
+    class InputWeight
+    {
+        public Node node;
+        public float weight;
+
+        public InputWeight(Node useNode, float useWeight)
+        {
+            node = useNode;
+            weight = useWeight;
+        }
+    }
+
+    List<InputWeight> inputWeights = new();
 
 
     // creating nodes from file/cloned from serialized
@@ -14,7 +26,7 @@ public class Node
     {
         for (int i = 0; i < previousLayerNodes.Count; i++)
         {
-            inputWeights.Add(previousLayerNodes[i], loadWeights[i]);
+            inputWeights.Add(new InputWeight(previousLayerNodes[i], loadWeights[i]));
         }
     }
 
@@ -23,7 +35,7 @@ public class Node
     {
         foreach (Node n in previousLayerNodes)
         {
-            inputWeights.Add(n, STARTING_WEIGHT);
+            inputWeights.Add(new InputWeight(n, STARTING_WEIGHT));
         }
     }
 
@@ -38,22 +50,21 @@ public class Node
         float percentActivated = 0f;
         foreach (var item in inputWeights)
         {
-            percentActivated += item.Key.isOutputting() ? Mathf.Max(item.Value, 0f) : 0f;
+            percentActivated += item.node.isOutputting() ? Mathf.Max(item.weight, 0f) : 0f;
             if(percentActivated >= 1f)
             {
-                //Debug.Log($"percentActivated: {percentActivated}");
                 return true;
             }
         }
-        //Debug.Log($"percentActivated: {percentActivated}");
         return false;
     }
 
     public void adjustInputWeights(float magnitude)
     {
-        foreach (Node item in previousLayerNodes())
+        foreach (InputWeight inputWeight in inputWeights)
         {
-            inputWeights[item] += Random.Range(-magnitude, magnitude);
+            inputWeight.weight += Random.Range(-magnitude, magnitude);
+            inputWeight.weight = Mathf.Max(inputWeight.weight, 0f);
         }
     }
 
@@ -66,7 +77,7 @@ public class Node
         List<Node> nodeAcc = new();
         foreach (var item in inputWeights)
         {
-            nodeAcc.Add(item.Key);
+            nodeAcc.Add(item.node);
         }
 
         return nodeAcc;
@@ -76,7 +87,7 @@ public class Node
         List<float> accList = new();
         foreach (var item in inputWeights)
         {
-            accList.Add(item.Value);
+            accList.Add(item.weight);
         }
         return accList;
     }

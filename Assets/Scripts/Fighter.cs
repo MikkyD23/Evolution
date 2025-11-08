@@ -50,12 +50,20 @@ public class Fighter : MonoBehaviour, IComparable
         { inputType.hostileRecentlyShot, 0}
     };
 
+
+    List<Node> orderedOutputNodes()
+    {
+        List<Node> ordered = new();
+        foreach (outputType t in (outputType[])Enum.GetValues(typeof(outputType)))
+        {
+            ordered.Add(outputNodes[t]);
+        }
+        return ordered;
+    }
+
     private void Awake()
     {
         rigidBody = GetComponent<Rigidbody2D>();
-
-        makeNetworkForFighter(0);
-
 
         resetForBattle();
     }
@@ -68,7 +76,7 @@ public class Fighter : MonoBehaviour, IComparable
             formattedOutputNodes.Add(n.Value);
         }
 
-        new NodeManaging().mutateWholeNetwork(formattedOutputNodes, 0.3f);
+        new NodeManaging().mutateWholeNetwork(formattedOutputNodes, magnitude);
     }
 
     public void debugPrintXml()
@@ -122,7 +130,7 @@ public class Fighter : MonoBehaviour, IComparable
     }
 
 
-    void makeNetworkForFighter(float resourcesUsed)
+    public void makeEmptyNetworkForFighter(float resourcesUsed)
     {
         List<Node> newOutputNodes = NodeManaging.generateNetwork(new List<int> { 5, 5 }, this);
         loadExistingNetwork(newOutputNodes);
@@ -401,12 +409,18 @@ public class Fighter : MonoBehaviour, IComparable
         lastSpottedActions[actionType] = ACTION_RECENCY_COUNTED;
     }
 
-    void loadExistingNetwork(List<Node> newOutputNodes)
+    public void loadExistingNetwork(List<Node> newOutputNodes)
     {
+        outputNodes = new();
         outputType[] outputs = (outputType[])Enum.GetValues(typeof(outputType));
 
         for (int i = 0; i < outputs.Length; i++)
         {
+            //print($"loading output layer node with layer weights:");
+            //foreach (var item in newOutputNodes[i].previousLayerWeights())
+            //{
+            //    print(item);
+            //}
             outputNodes.Add(outputs[i], newOutputNodes[i]);
         }
     }
@@ -425,7 +439,7 @@ public class Fighter : MonoBehaviour, IComparable
     public Fighter reproduce()
     {
         Fighter newFighter = Instantiate(this.gameObject).GetComponent<Fighter>();
-        new NodeManaging().deepCloneNetwork(outputNodes.Values.ToList(), newFighter);
+        new NodeManaging().deepCloneNetwork(orderedOutputNodes(), newFighter);
 
         return newFighter;
     }

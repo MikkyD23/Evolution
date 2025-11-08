@@ -175,5 +175,6 @@ public class NodeManaging
         }
 
         // add output layer reference to fighter
+        applyTo.loadExistingNetwork(currentLayer);
     }
 }

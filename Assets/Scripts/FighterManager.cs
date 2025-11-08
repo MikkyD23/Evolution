@@ -1,13 +1,18 @@
 using System.Collections;
 using System.Collections.Generic;
-using System.Reflection;
 using UnityEngine;
 
 public class FighterManager : MonoBehaviour
 {
-    const int POOL_SIZE = 20;
+    const int POOL_SIZE = 40;
+    public static readonly float MUTATION_AMOUNT = 0.1f;
+    const float TICK_TIME = 0.25f;
+    const int BATTLE_TICKLENGTH = 100;
 
-    List<Fighter> fightingPool = new();
+    // use as a lock to keep track of when we all finish in case timing is inconsistent at high timescales
+    int ongoingFights = 0; 
+
+    List<Fighter> allFighters = new();
     [SerializeField] GameObject fighterPrefab;
     [SerializeField] GameObject arenaPrefab;
 
@@ -16,31 +21,13 @@ public class FighterManager : MonoBehaviour
         for (int i = 0; i < POOL_SIZE; i++)
         {
             Fighter newFighter = Instantiate(fighterPrefab).GetComponent<Fighter>();
-            newFighter.mutateSelf(10f);
+            newFighter.makeEmptyNetworkForFighter(0);
+            newFighter.mutateSelf(MUTATION_AMOUNT * 20);
             newFighter.gameObject.SetActive(false);
-            fightingPool.Add(newFighter);
+            allFighters.Add(newFighter);
         }
 
-        StartCoroutine(startFight(new Vector2(0, 0)));
-        StartCoroutine(startFight(new Vector2(25, 0)));
-        StartCoroutine(startFight(new Vector2(50, 0)));
-        StartCoroutine(startFight(new Vector2(75, 0)));
-
-        //StartCoroutine(startFight(new Vector2(0, 25)));
-        //StartCoroutine(startFight(new Vector2(25, 25)));
-        //StartCoroutine(startFight(new Vector2(50, 25)));
-        //StartCoroutine(startFight(new Vector2(75, 25)));
-
-        //StartCoroutine(startFight(new Vector2(0, 50)));
-        //StartCoroutine(startFight(new Vector2(25, 50)));
-        //StartCoroutine(startFight(new Vector2(50, 50)));
-        //StartCoroutine(startFight(new Vector2(75, 50)));
-
-        //StartCoroutine(startFight(new Vector2(0, 75)));
-        //StartCoroutine(startFight(new Vector2(25, 75)));
-        //StartCoroutine(startFight(new Vector2(50, 75)));
-        //StartCoroutine(startFight(new Vector2(75, 75)));
-
+        StartCoroutine(fightLoop());
     }
 
     private void Update()
@@ -63,61 +50,98 @@ public class FighterManager : MonoBehaviour
         }
     }
 
-    IEnumerator startFight(Vector2 location)
+    IEnumerator fightLoop()
     {
+        List<Fighter> fightingPool = new();
+        fightingPool.AddRange(allFighters);
+        const float ARENA_DISTANCE = 25f;
+
+        for (int i = 0; fightingPool.Count > 1; i++)
+        {
+            StartCoroutine(
+                startFight(new Vector2(i * ARENA_DISTANCE, 0),
+                chooseFighter(fightingPool),
+                chooseFighter(fightingPool)
+                )
+            );
+        }
+
+        while(ongoingFights >= 1)
+        {
+            yield return new WaitForSeconds(2f);
+        }
+
+        // all fights fininshed now
+        List<Fighter> placings = new();
+        placings.AddRange(allFighters);
+        placings.Sort();
+
+        const float UPPER_PLACING_THRESHOLD = 0.3f;
+        int destroyCount = Mathf.FloorToInt(UPPER_PLACING_THRESHOLD * placings.Count);
+        // destroy/reproduce on top/bottom percentiles
+        for (int i = 0; i < destroyCount; i++)
+        {
+            Fighter winner = placings[i];
+            int equivalentLoserPlacing = placings.Count - 1 - i;
+            Fighter loser = placings[equivalentLoserPlacing];
+            print($"rewarding winner at place {i} (score {winner.rewardScore()}). executing loser at place {equivalentLoserPlacing} (score {loser.rewardScore()})");
+            reproduceWinner(winner);
+            destroyLoser(loser);
+        }
+
+        // mutate the middle class
+        for (int i = destroyCount - 1; i < placings.Count - destroyCount; i++)
+        {
+            placings[i].mutateSelf(MUTATION_AMOUNT);
+        }
+
+        StartCoroutine(fightLoop());
+    }
+
+    IEnumerator startFight(Vector2 location, Fighter fighter1, Fighter fighter2)
+    {
+        ongoingFights++;
         GameObject arena = Instantiate(arenaPrefab);
         arena.transform.position = location;
-        Fighter fighter1 = chooseFighter();
-        Fighter fighter2 = chooseFighter();
 
         fighter1.transform.position = location + new Vector2(-2.5f, 0);
         fighter2.transform.position = location + new Vector2(2.5f, 0);
 
-        float tickTime = 0.25f;
-        for (int i = 0; i < 60; i++)
+        for (int i = 0; i < BATTLE_TICKLENGTH; i++)
         {
-            yield return new WaitForSeconds(tickTime * 0.5f);
-            fighter1.pollForOutput(tickTime);
-            yield return new WaitForSeconds(tickTime * 0.5f);
-            fighter2.pollForOutput(tickTime);
+            yield return new WaitForSeconds(TICK_TIME * 0.5f);
+            fighter1.pollForOutput(TICK_TIME);
+            yield return new WaitForSeconds(TICK_TIME * 0.5f);
+            fighter2.pollForOutput(TICK_TIME);
 
         }
-        Fighter winner = fighter2;
-        Fighter loser = fighter1;
-        if(fighter1.rewardScore() >= fighter2.rewardScore())
-        {
-            winner = fighter1;
-            loser = fighter2;
-        }
 
-        print($"winner score: {winner.rewardScore()}. loser score: {loser.rewardScore()}");
-
-        fightingPool.Remove(loser);
-        Destroy(loser.gameObject);
-        Fighter newFighter = winner.reproduce();
-        newFighter.mutateSelf(0.1f);
-
-        //Debug.Log($"Winner XML:");
-        //winner.debugPrintXml();
-        newFighter.gameObject.SetActive(false);
-        yield return new WaitForSeconds(1.5f);
-        winner.gameObject.SetActive(false);
-        fightingPool.Add(winner);
-        fightingPool.Add(newFighter);
-
-        yield return new WaitForSeconds(0.5f);
+        fighter1.gameObject.SetActive(false);
+        fighter2.gameObject.SetActive(false);
         Destroy(arena);
-        StartCoroutine(startFight(location));
+        ongoingFights--;
     }
 
-    Fighter chooseFighter()
+    Fighter chooseFighter(List<Fighter> fromPool)
     {
-        Fighter chosen = fightingPool[Random.Range(0, fightingPool.Count - 1)];
-        fightingPool.Remove(chosen);
+        Fighter chosen = fromPool[Random.Range(0, fromPool.Count - 1)];
+        fromPool.Remove(chosen);
         chosen.gameObject.SetActive(true);
         chosen.resetForBattle();
         return chosen;
     }
 
+    void reproduceWinner(Fighter winner)
+    {
+        Fighter newFighter = winner.reproduce();
+        newFighter.mutateSelf(MUTATION_AMOUNT);
+        newFighter.gameObject.SetActive(false);
+        allFighters.Add(newFighter);
+    }
 
+    void destroyLoser(Fighter loser)
+    {
+        allFighters.Remove(loser);
+        Destroy(loser.gameObject);
+    }
 }
