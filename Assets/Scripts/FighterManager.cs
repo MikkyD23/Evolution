@@ -55,6 +55,7 @@ public class FighterManager : MonoBehaviour
 
     IEnumerator fightLoop()
     {
+        iterateGeneration();
         List<Fighter> fightingPool = new();
         fightingPool.AddRange(allFighters);
         const float ARENA_DISTANCE = 25f;
@@ -149,5 +150,11 @@ public class FighterManager : MonoBehaviour
     {
         allFighters.Remove(loser);
         Destroy(loser.gameObject);
+    }
+
+    void iterateGeneration()
+    {
+        generationCount++;
+        ui.updateGenerationText(generationCount);
     }
 }
