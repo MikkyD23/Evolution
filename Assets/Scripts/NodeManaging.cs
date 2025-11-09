@@ -177,4 +177,17 @@ public class NodeManaging
         // add output layer reference to fighter
         applyTo.loadExistingNetwork(currentLayer);
     }
+
+    public void recalculateNetworkOutputs(List<Node> outputLayer)
+    {
+        List<List<Node>> layers = allNodeLayers(outputLayer);
+
+        foreach (List<Node> layer in layers)
+        {
+            foreach (Node n in layer)
+            {
+                n.recalculateOutputting();
+            }
+        }
+    }
 }

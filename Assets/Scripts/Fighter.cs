@@ -189,10 +189,16 @@ public class Fighter : MonoBehaviour, IComparable
 
     }
 
+    void recalculateNetwork()
+    {
+        new NodeManaging().recalculateNetworkOutputs(orderedOutputNodes());
+    }
+
     public void pollForOutput(float secondsPassed = 0.25f)
     {
         setEnemyDetection();
         decrementPerceivedActions(secondsPassed);
+        recalculateNetwork();
 
         // expecting this to be called every quarter second
         currentEnergy = Mathf.Min(currentEnergy + (ENERGY_REGEN_SECOND * secondsPassed), BASE_ENERGY);

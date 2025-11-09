@@ -18,11 +18,9 @@ public class InputNode : Node
 
     }
 
-
-
-    public override bool isOutputting()
+    public override void recalculateOutputting()
     {
-        return host.checkInput(forInputType);
+        currentlyOutputting = host.checkInput(forInputType);
     }
 
     public override List<float> previousLayerWeights()

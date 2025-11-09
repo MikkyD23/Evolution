@@ -4,6 +4,9 @@ using UnityEngine;
 
 public class Node
 {
+    List<InputWeight> inputWeights = new();
+    protected bool currentlyOutputting = false;
+
     class InputWeight
     {
         public Node node;
@@ -15,9 +18,6 @@ public class Node
             weight = useWeight;
         }
     }
-
-    List<InputWeight> inputWeights = new();
-
 
     // creating nodes from file/cloned from serialized
     public Node(List<Node> previousLayerNodes, List<float> loadWeights)
@@ -44,18 +44,25 @@ public class Node
     }
 
 
-    public virtual bool isOutputting()
+    public bool isOutputting()
+    {
+        return currentlyOutputting;
+    }
+
+    public virtual void recalculateOutputting()
     {
         float percentActivated = 0f;
         foreach (var item in inputWeights)
         {
             percentActivated += item.node.isOutputting() ? Mathf.Max(item.weight, 0f) : 0f;
-            if(percentActivated >= 1f)
+            if (percentActivated >= 1f)
             {
-                return true;
+                currentlyOutputting = true;
+                return;
             }
         }
-        return false;
+        currentlyOutputting = false;
+
     }
 
     public void adjustInputWeights(float magnitude)
