@@ -8,11 +8,11 @@ public class Fighter : MonoBehaviour, IComparable
 {
     public static readonly int FIGHTER_LAYER = 3;
 
-    const float BASE_HP = 100f;
+    const float BASE_HP = 50f;
     float currentHp = BASE_HP;
 
-    const float BASE_ENERGY = 100f;
-    float currentEnergy = 50f;
+    const float BASE_ENERGY = 50f;
+    float currentEnergy = BASE_ENERGY;
     const float ENERGY_REGEN_SECOND = 3f;
 
     const float LIGHT_ENERGY_COST = 5f;
@@ -30,6 +30,8 @@ public class Fighter : MonoBehaviour, IComparable
 
     const float TURN_SPEED = 7.5f;
     const float MOVE_SPEED = 40f;
+
+    bool feintedThisBattle = false;
 
     [SerializeField] GameObject bulletPrefab;
 
@@ -99,6 +101,9 @@ public class Fighter : MonoBehaviour, IComparable
         public float damageDealt = 0;
         public float damageReceived = 0;
         public float distanceMoved = 0;
+        public int attackCount = 0;
+        public bool wonThisFight = false;
+        public bool lostThisFight = false;
 
         /// <summary>
         /// Used to determine rank/how well we did to decide if we need to change/ get eliminated
@@ -109,7 +114,10 @@ public class Fighter : MonoBehaviour, IComparable
             float accScore = 0;
             accScore += (damageDealt / BASE_HP) * 4f;
             accScore -= (damageReceived / BASE_HP);
-            accScore += (distanceMoved / MOVE_SPEED) / 2f; // basically tiebreaker
+            accScore += (distanceMoved / (MOVE_SPEED * 4)); // basically tiebreaker only
+            accScore += attackCount * 0.01f;
+            accScore += wonThisFight ? 5f : 0f;
+            accScore -= lostThisFight ? 5f : 0f;
             // TODO add in move variety score
             return accScore;
         }
@@ -196,6 +204,10 @@ public class Fighter : MonoBehaviour, IComparable
 
     public void pollForOutput(float secondsPassed = 0.25f)
     {
+        if (feintedThisBattle)
+        {
+            return;
+        }
         setEnemyDetection();
         decrementPerceivedActions(secondsPassed);
         recalculateNetwork();
@@ -224,7 +236,7 @@ public class Fighter : MonoBehaviour, IComparable
         rigidBody.AddForce(directionMove * secondsPassed * MOVE_SPEED);
 
         currentRechargeLeft -= secondsPassed;
-        if (!isRunning)
+        if (!isRunning) // TODO make running instead only use energy
         {
             if (canUseAttack(LIGHT_RECHARGE, LIGHT_ENERGY_COST) && isOutputting(outputType.shootRanged))
             {
@@ -328,6 +340,7 @@ public class Fighter : MonoBehaviour, IComparable
 
         // alert to enemy we made this action
         enemyThisFight.perceivedEnemyAction(inputType.hostileRecentlyShot);
+        thisBattleStats.attackCount++;
     }
 
     void quickMeleeAttack()
@@ -356,6 +369,27 @@ public class Fighter : MonoBehaviour, IComparable
         currentHp -= damage;
         thisBattleStats.damageReceived += damage;
         perceivedEnemyAction(inputType.recentlyHurt);
+        checkDefeat();
+    }
+
+    void checkDefeat()
+    {
+        if (feintedThisBattle || currentHp >= 0)
+        {
+            return;
+        }
+
+        // lost battle this turn
+        GetComponent<Collider2D>().enabled = false;
+        feintedThisBattle = true;
+        thisBattleStats.lostThisFight = true;
+        enemyThisFight.reportEnemyDefeated();
+        GetComponent<SpriteRenderer>().color = Color.black;
+    }
+
+    void reportEnemyDefeated()
+    {
+        thisBattleStats.wonThisFight = true;
     }
 
     bool checkLos(Vector2 direction)
@@ -467,7 +501,10 @@ public class Fighter : MonoBehaviour, IComparable
         currentRechargeLeft = 0f;
 
         enemyThisFight = null;
+        GetComponent<SpriteRenderer>().color = Color.white;
         transform.rotation = Quaternion.identity;
+        GetComponent<Collider2D>().enabled = true;
+        feintedThisBattle = false;
     }
 
     public Fighter reproduce()

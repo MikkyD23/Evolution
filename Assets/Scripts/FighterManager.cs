@@ -4,7 +4,7 @@ using UnityEngine;
 
 public class FighterManager : MonoBehaviour
 {
-    const int POOL_SIZE = 40;
+    const int POOL_SIZE = 80;
     const float MUTATION_AMOUNT = 0.05f;
     const float TICK_TIME = 0.25f;
     const int BATTLE_TICKLENGTH = 100;
@@ -15,6 +15,9 @@ public class FighterManager : MonoBehaviour
     List<Fighter> allFighters = new();
     [SerializeField] GameObject fighterPrefab;
     [SerializeField] GameObject arenaPrefab;
+    [SerializeField] UiManager ui;
+
+    int generationCount = 0;
 
     private void Awake()
     {
@@ -56,10 +59,13 @@ public class FighterManager : MonoBehaviour
         fightingPool.AddRange(allFighters);
         const float ARENA_DISTANCE = 25f;
 
+        const int COLUMN_COUNT = 10;
         for (int i = 0; fightingPool.Count > 1; i++)
         {
+            int onColumn = i % COLUMN_COUNT;
+            int onRow = i / COLUMN_COUNT;
             StartCoroutine(
-                startFight(new Vector2(i * ARENA_DISTANCE, 0),
+                startFight(new Vector2(onColumn * ARENA_DISTANCE, onRow * ARENA_DISTANCE),
                 chooseFighter(fightingPool),
                 chooseFighter(fightingPool)
                 )
