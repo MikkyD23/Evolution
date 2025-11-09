@@ -12,8 +12,8 @@ public class Fighter : MonoBehaviour, IComparable
     float currentHp = BASE_HP;
 
     const float BASE_ENERGY = 100f;
-    float currentEnergy = 100f;
-    const float ENERGY_REGEN_SECOND = 7f;
+    float currentEnergy = 50f;
+    const float ENERGY_REGEN_SECOND = 3f;
 
     const float LIGHT_ENERGY_COST = 5f;
     const float HEAVY_ENERGY_COST = 10f;
@@ -29,7 +29,7 @@ public class Fighter : MonoBehaviour, IComparable
     const float LOS_RANGE = 14f;
 
     const float TURN_SPEED = 7.5f;
-    const float MOVE_SPEED = 20f;
+    const float MOVE_SPEED = 40f;
 
     [SerializeField] GameObject bulletPrefab;
 
@@ -47,7 +47,16 @@ public class Fighter : MonoBehaviour, IComparable
 
     Dictionary<inputType, float> lastSpottedActions = new()
     {
-        { inputType.hostileRecentlyShot, 0}
+        {inputType.hostileRecentlyShot, 0},
+        {inputType.hostileRecentlyQuickMelee, 0},
+        {inputType.hostileRecentlyHeavyTargetedMelee, 0},
+        {inputType.hostileRecentlyWideMelee, 0},
+        {inputType.hostileRecentlyBlock, 0},
+        {inputType.hostileRecentlyGrab, 0},
+        {inputType.hostileRecentlyWalk, 0},
+        {inputType.hostileRecentlyRun, 0},
+        {inputType.hostileRecentlyHurt, 0},
+        {inputType.recentlyHurt, 0}
     };
 
 
@@ -90,7 +99,6 @@ public class Fighter : MonoBehaviour, IComparable
         public float damageDealt = 0;
         public float damageReceived = 0;
         public float distanceMoved = 0;
-        public bool won = false;
 
         /// <summary>
         /// Used to determine rank/how well we did to decide if we need to change/ get eliminated
@@ -99,10 +107,10 @@ public class Fighter : MonoBehaviour, IComparable
         public float rewardScore()
         {
             float accScore = 0;
-            accScore += won ? 100f : 0;
-            accScore += (damageDealt / BASE_HP) * 8f;
+            accScore += (damageDealt / BASE_HP) * 4f;
             accScore -= (damageReceived / BASE_HP);
-            accScore += distanceMoved * 0.025f;
+            accScore += (distanceMoved / MOVE_SPEED) / 2f; // basically tiebreaker
+            // TODO add in move variety score
             return accScore;
         }
     }
@@ -139,7 +147,7 @@ public class Fighter : MonoBehaviour, IComparable
 
     public enum inputType
     {
-        random1, random2, random3, random4, random5,
+        alwaysOn, random,
         // hostile detected direction (relative to move direction)
         hostileDetectedForward, hostileDetectedLeft, hostileDetectedRight, hostileDetectedBack,
         // direction aim helpers
@@ -174,7 +182,7 @@ public class Fighter : MonoBehaviour, IComparable
         moveForward, moveLeft, moveRight, moveBack,
 
         // look/attack direction
-        lookLeft, lookHardLeft, lookRight, lookHardRight,
+        rotateLookSoft, rotateLookHard, lookRight,
 
         // callback output that goes directly back to input (memory)
         memory1, memory2, memory3
@@ -184,15 +192,16 @@ public class Fighter : MonoBehaviour, IComparable
     public void pollForOutput(float secondsPassed = 0.25f)
     {
         setEnemyDetection();
+        decrementPerceivedActions(secondsPassed);
+
         // expecting this to be called every quarter second
         currentEnergy = Mathf.Min(currentEnergy + (ENERGY_REGEN_SECOND * secondsPassed), BASE_ENERGY);
 
         // positive goes left
         float directionLook = 0f;
-        directionLook += isOutputting(outputType.lookLeft) ? 1f : 0;
-        directionLook += isOutputting(outputType.lookHardLeft) ? 1.5f : 0;
-        directionLook -= isOutputting(outputType.lookRight) ? 1f : 0;
-        directionLook -= isOutputting(outputType.lookHardRight) ? 1.5f : 0;
+        directionLook += isOutputting(outputType.rotateLookSoft) ? 1f : 0;
+        directionLook += isOutputting(outputType.rotateLookHard) ? 1.5f : 0;
+        directionLook *= isOutputting(outputType.lookRight) ? -1f : 1f;
 
         directionLook *= secondsPassed * TURN_SPEED;
         rigidBody.AddTorque(directionLook);
@@ -203,17 +212,24 @@ public class Fighter : MonoBehaviour, IComparable
         directionMove += isOutputting(outputType.moveLeft) ? -transform.right : Vector2.zero;
         directionMove += isOutputting(outputType.moveBack) ? -transform.up : Vector2.zero;
 
-        directionMove *= isOutputting(outputType.run) ? 2f : isOutputting(outputType.walk) ? 1f : 0f;
+        bool isRunning = isOutputting(outputType.run);
+
+        directionMove *= isRunning ? 2f : isOutputting(outputType.walk) ? 1f : 0f;
         rigidBody.AddForce(directionMove * secondsPassed * MOVE_SPEED);
 
         currentRechargeLeft -= secondsPassed;
-        if (isOutputting(outputType.shootRanged) && usedAttackResources(LIGHT_RECHARGE, LIGHT_ENERGY_COST))
+        if (!isRunning)
         {
-            rangedAttack();
-        }
-        if(isOutputting(outputType.quickMelee) && usedAttackResources(LIGHT_RECHARGE, LIGHT_ENERGY_COST))
-        {
-
+            if (canUseAttack(LIGHT_RECHARGE, LIGHT_ENERGY_COST) && isOutputting(outputType.shootRanged))
+            {
+                rangedAttack();
+                usedAttackResources(LIGHT_RECHARGE, LIGHT_ENERGY_COST);
+            }
+            else if (canUseAttack(LIGHT_RECHARGE, LIGHT_ENERGY_COST) && isOutputting(outputType.quickMelee))
+            {
+                quickMeleeAttack();
+                usedAttackResources(LIGHT_RECHARGE, LIGHT_ENERGY_COST);
+            }
         }
         // allow it to go slightly negative this frame so more consistent with long tick lengths
         currentRechargeLeft = Mathf.Max(currentRechargeLeft, 0f); 
@@ -229,15 +245,9 @@ public class Fighter : MonoBehaviour, IComparable
     {
         switch (forType)
         {
-            case inputType.random1:
-                return UnityEngine.Random.value > 0.5f;
-            case inputType.random2:
-                return UnityEngine.Random.value > 0.5f;
-            case inputType.random3:
-                return UnityEngine.Random.value > 0.5f;
-            case inputType.random4:
-                return UnityEngine.Random.value > 0.5f;
-            case inputType.random5:
+            case inputType.alwaysOn:
+                return true;
+            case inputType.random:
                 return UnityEngine.Random.value > 0.5f;
             case inputType.hostileDetectedForward:
                 return checkLos(transform.up);
@@ -260,11 +270,11 @@ public class Fighter : MonoBehaviour, IComparable
             case inputType.hostileDetectedSlightlyRight3:
                 return checkLos(Vector2.Lerp(transform.up, transform.right, 0.6f).normalized);
             case inputType.hostileDetectedClose:
-                break;
+                return enemyDistance() < 1f;
             case inputType.hostileDetectedMedium:
-                break;
+                return enemyDistance() < LOS_RANGE * 0.5f;
             case inputType.hostileDetectedFar:
-                break;
+                return enemyDistance() < LOS_RANGE;
             case inputType.hostileRecentlyShot:
             case inputType.hostileRecentlyQuickMelee:
             case inputType.hostileRecentlyHeavyTargetedMelee:
@@ -274,8 +284,8 @@ public class Fighter : MonoBehaviour, IComparable
             case inputType.hostileRecentlyWalk:
             case inputType.hostileRecentlyRun:
             case inputType.hostileRecentlyHurt:
-                return false; // TODO
-                //return lastSpottedActions[forType] >= 0;
+            case inputType.recentlyHurt:
+                return lastSpottedActions[forType] >= 0;
             case inputType.mySpeedStationary:
                 return rigidBody.linearVelocity.magnitude <= 0.1f;
             case inputType.mySpeedSlow:
@@ -289,9 +299,7 @@ public class Fighter : MonoBehaviour, IComparable
             case inputType.has3ThirdEnergy:
                 return currentEnergy >= BASE_ENERGY - 1f;
             case inputType.readyToAttack:
-                break;
-            case inputType.recentlyHurt:
-                break;
+                return currentRechargeLeft <= 0f;
             case inputType.lowHealth:
                 return currentHp <= (BASE_HP * 0.5f);
             case inputType.memory1:
@@ -304,8 +312,6 @@ public class Fighter : MonoBehaviour, IComparable
                 print($"Missing input: {forType}!!");
                 throw new Exception($"Missing input: {forType}!!");
         }
-
-        return false;
     }
 
     void rangedAttack()
@@ -313,28 +319,37 @@ public class Fighter : MonoBehaviour, IComparable
         GameObject newBullet = Instantiate(bulletPrefab);
         newBullet.GetComponent<Projectile>().initialise(transform.up, this, RANGED_DAMAGE);
         newBullet.transform.position = transform.position;
+
+        // alert to enemy we made this action
+        enemyThisFight.perceivedEnemyAction(inputType.hostileRecentlyShot);
     }
 
-    bool usedAttackResources(float rechargeTime, float energyCost)
+    void quickMeleeAttack()
     {
-        if(currentRechargeLeft > 0f || currentEnergy < energyCost)
-        {
-            return false;
-        }
+
+    }
+
+    bool canUseAttack(float rechargeTime, float energyCost)
+    {
+        return currentRechargeLeft <= 0f && currentEnergy >= energyCost;
+    }
+    void usedAttackResources(float rechargeTime, float energyCost)
+    {
         currentRechargeLeft += rechargeTime;
         currentEnergy -= energyCost;
-        return true;
     }
 
     public void reportDealtDamage(float damage)
     {
         thisBattleStats.damageDealt += damage;
+        perceivedEnemyAction(inputType.hostileRecentlyHurt);
     }
 
     public void takeDamage(float damage)
     {
         currentHp -= damage;
         thisBattleStats.damageReceived += damage;
+        perceivedEnemyAction(inputType.recentlyHurt);
     }
 
     bool checkLos(Vector2 direction)
@@ -350,13 +365,6 @@ public class Fighter : MonoBehaviour, IComparable
         //Debug.DrawRay(transform.position, direction * LOS_RANGE, noticedTarget ? Color.red : Color.gray, 0.1f);
 
         return noticedTarget;
-
-    }
-
-
-    bool checkWithinRange()
-    {
-        return false;
     }
 
     bool isOutputting(outputType forOutput)
@@ -407,6 +415,26 @@ public class Fighter : MonoBehaviour, IComparable
     {
         // some sort of moveset data structure, or keep it simple and static?
         lastSpottedActions[actionType] = ACTION_RECENCY_COUNTED;
+    }
+
+    void decrementPerceivedActions(float secondsPassed)
+    {
+        lastSpottedActions[inputType.hostileRecentlyShot] -= secondsPassed;
+        lastSpottedActions[inputType.hostileRecentlyQuickMelee] -= secondsPassed;
+        lastSpottedActions[inputType.hostileRecentlyHeavyTargetedMelee] -= secondsPassed;
+        lastSpottedActions[inputType.hostileRecentlyWideMelee] -= secondsPassed;
+        lastSpottedActions[inputType.hostileRecentlyBlock] -= secondsPassed;
+        lastSpottedActions[inputType.hostileRecentlyGrab] -= secondsPassed;
+        lastSpottedActions[inputType.hostileRecentlyWalk] -= secondsPassed;
+        lastSpottedActions[inputType.hostileRecentlyRun] -= secondsPassed;
+        lastSpottedActions[inputType.hostileRecentlyHurt] -= secondsPassed;
+        lastSpottedActions[inputType.recentlyHurt] -= secondsPassed;
+        // can't do for loop because get error from modifying it
+        //foreach (var item in lastSpottedActions)
+        //{
+        //    lastSpottedActions[item.Key] -= secondsPassed;
+        //}
+
     }
 
     public void loadExistingNetwork(List<Node> newOutputNodes)
