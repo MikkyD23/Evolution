@@ -90,10 +90,9 @@ public class Fighter : MonoBehaviour, IComparable
         new NodeManaging().mutateWholeNetwork(formattedOutputNodes, magnitude);
     }
 
-    public void debugPrintXml()
+    public string serializedNodes()
     {
-        print(new NodeManaging().serializeNetwork(outputNodes.Values.ToList()));
-
+        return new NodeManaging().serializeNetwork(orderedOutputNodes());
     }
 
     class BattleStats
@@ -148,7 +147,7 @@ public class Fighter : MonoBehaviour, IComparable
 
     public void makeEmptyNetworkForFighter(float resourcesUsed)
     {
-        List<Node> newOutputNodes = NodeManaging.generateNetwork(new List<int> { 5, 5 }, this);
+        List<Node> newOutputNodes = NodeManaging.generateNetwork(new List<int> { 10, 10 }, this);
         loadExistingNetwork(newOutputNodes);
     }
 

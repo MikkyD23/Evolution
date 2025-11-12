@@ -144,7 +144,7 @@ public class NodeManaging
         return accLayers;
     }
 
-    void applySerializedNetwork(string nodeNetworkString, Fighter applyTo)
+    public void applySerializedNetwork(string nodeNetworkString, Fighter applyTo)
     {
         StringReader stringReader = new StringReader(nodeNetworkString);
         XmlSerializer serializer = new XmlSerializer(typeof(serializableNetwork));
