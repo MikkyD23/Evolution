@@ -5,7 +5,7 @@ using UnityEngine;
 public class FighterManager : MonoBehaviour
 {
     const int POOL_SIZE = 100;
-    const float MUTATION_AMOUNT = 0.05f;
+    const float MUTATION_AMOUNT = 0.04f;
     const float TICK_TIME = 0.25f;
     const int BATTLE_TICKLENGTH = 100;
     const float ARENA_DISTANCE = 25f;
@@ -13,7 +13,7 @@ public class FighterManager : MonoBehaviour
 
 
     // number of generations to go for before we check our generation vs generation from x ago
-    const int GENERATION_COMPARISON_INTERVAL = 7;
+    const int GENERATION_COMPARISON_INTERVAL = 10;
 
     // use as a lock to keep track of when we all finish in case timing is inconsistent at high timescales
     int ongoingFights = 0; 

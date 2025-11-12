@@ -29,11 +29,14 @@ public class Fighter : MonoBehaviour, IComparable
     const float LOS_RANGE = 14f;
 
     const float TURN_SPEED = 7.5f;
-    const float MOVE_SPEED = 40f;
+    const float MOVE_SPEED = 80f;
 
     bool feintedThisBattle = false;
 
     [SerializeField] GameObject bulletPrefab;
+    [SerializeField] GameObject shieldVisual;
+
+    bool currentlyBlocking = false;
 
     BattleStats thisBattleStats = new();
 
@@ -54,6 +57,7 @@ public class Fighter : MonoBehaviour, IComparable
         {inputType.hostileRecentlyHeavyTargetedMelee, 0},
         {inputType.hostileRecentlyWideMelee, 0},
         {inputType.hostileRecentlyBlock, 0},
+        {inputType.hostileRecentlyBlockedMyShot, 0},
         {inputType.hostileRecentlyGrab, 0},
         {inputType.hostileRecentlyWalk, 0},
         {inputType.hostileRecentlyRun, 0},
@@ -111,12 +115,12 @@ public class Fighter : MonoBehaviour, IComparable
         public float rewardScore()
         {
             float accScore = 0;
-            accScore += (damageDealt / BASE_HP) * 4f;
-            accScore -= (damageReceived / BASE_HP);
-            accScore += (distanceMoved / (MOVE_SPEED * 4)); // basically tiebreaker only
-            accScore += attackCount * 0.01f;
-            accScore += wonThisFight ? 5f : 0f;
-            accScore -= lostThisFight ? 5f : 0f;
+            accScore += damageDealt;
+            accScore -= damageReceived;
+            accScore += (distanceMoved / MOVE_SPEED); 
+            accScore += (attackCount / 8f); // basically tiebreaker to get rolling
+            //accScore += wonThisFight ? 5f : 0f;
+            //accScore -= lostThisFight ? 5f : 0f;
             // TODO add in move variety score
             return accScore;
         }
@@ -166,7 +170,7 @@ public class Fighter : MonoBehaviour, IComparable
 
         // Enemy recent action (last 1 second)
         hostileRecentlyShot, hostileRecentlyQuickMelee, hostileRecentlyHeavyTargetedMelee, hostileRecentlyWideMelee,
-        hostileRecentlyBlock, hostileRecentlyGrab, hostileRecentlyWalk, hostileRecentlyRun,
+        hostileRecentlyBlock, hostileRecentlyBlockedMyShot, hostileRecentlyGrab, hostileRecentlyWalk, hostileRecentlyRun,
         hostileRecentlyHurt,
 
         // our movement speed/momentum
@@ -234,8 +238,10 @@ public class Fighter : MonoBehaviour, IComparable
         directionMove *= isRunning ? 2f : isOutputting(outputType.walk) ? 1f : 0f;
         rigidBody.AddForce(directionMove * secondsPassed * MOVE_SPEED);
 
+        setBlockingStatus(isOutputting(outputType.block));
+
         currentRechargeLeft -= secondsPassed;
-        if (!isRunning) // TODO make running instead only use energy
+        if (!isRunning && !currentlyBlocking)
         {
             if (canUseAttack(LIGHT_RECHARGE, LIGHT_ENERGY_COST) && isOutputting(outputType.shootRanged))
             {
@@ -297,6 +303,7 @@ public class Fighter : MonoBehaviour, IComparable
             case inputType.hostileRecentlyHeavyTargetedMelee:
             case inputType.hostileRecentlyWideMelee:
             case inputType.hostileRecentlyBlock:
+            case inputType.hostileRecentlyBlockedMyShot:
             case inputType.hostileRecentlyGrab:
             case inputType.hostileRecentlyWalk:
             case inputType.hostileRecentlyRun:
@@ -347,6 +354,12 @@ public class Fighter : MonoBehaviour, IComparable
 
     }
 
+    void setBlockingStatus(bool setTo)
+    {
+        currentlyBlocking = setTo;
+        shieldVisual.SetActive(setTo);
+    }
+
     bool canUseAttack(float rechargeTime, float energyCost)
     {
         return currentRechargeLeft <= 0f && currentEnergy >= energyCost;
@@ -357,33 +370,40 @@ public class Fighter : MonoBehaviour, IComparable
         currentEnergy -= energyCost;
     }
 
-    public void reportDealtDamage(float damage)
+    void reportDealtDamage(float damage)
     {
         thisBattleStats.damageDealt += damage;
         perceivedEnemyAction(inputType.hostileRecentlyHurt);
     }
 
-    public void takeDamage(float damage)
+    public void takeDamage(float damage, Fighter from)
     {
-        currentHp -= damage;
-        thisBattleStats.damageReceived += damage;
+        float modifiedDamage = damage;
+        if (currentlyBlocking)
+        {
+            modifiedDamage *= BLOCK_DMG_RESIST;
+            from.perceivedEnemyAction(inputType.hostileRecentlyBlockedMyShot);
+        }
+        currentHp -= modifiedDamage;
+        thisBattleStats.damageReceived += modifiedDamage;
         perceivedEnemyAction(inputType.recentlyHurt);
+        from.reportDealtDamage(modifiedDamage);
         checkDefeat();
     }
 
     void checkDefeat()
     {
-        if (feintedThisBattle || currentHp >= 0)
-        {
-            return;
-        }
+        //if (feintedThisBattle || currentHp >= 0)
+        //{
+        //    return;
+        //}
 
-        // lost battle this turn
-        GetComponent<Collider2D>().enabled = false;
-        feintedThisBattle = true;
-        thisBattleStats.lostThisFight = true;
-        enemyThisFight.reportEnemyDefeated();
-        GetComponent<SpriteRenderer>().color = Color.black;
+        //// lost battle this turn
+        //GetComponent<Collider2D>().enabled = false;
+        //feintedThisBattle = true;
+        //thisBattleStats.lostThisFight = true;
+        //enemyThisFight.reportEnemyDefeated();
+        //GetComponent<SpriteRenderer>().color = Color.black;
     }
 
     void reportEnemyDefeated()
@@ -463,6 +483,7 @@ public class Fighter : MonoBehaviour, IComparable
         lastSpottedActions[inputType.hostileRecentlyHeavyTargetedMelee] -= secondsPassed;
         lastSpottedActions[inputType.hostileRecentlyWideMelee] -= secondsPassed;
         lastSpottedActions[inputType.hostileRecentlyBlock] -= secondsPassed;
+        lastSpottedActions[inputType.hostileRecentlyBlockedMyShot] -= secondsPassed;
         lastSpottedActions[inputType.hostileRecentlyGrab] -= secondsPassed;
         lastSpottedActions[inputType.hostileRecentlyWalk] -= secondsPassed;
         lastSpottedActions[inputType.hostileRecentlyRun] -= secondsPassed;

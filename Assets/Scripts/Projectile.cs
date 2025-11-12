@@ -30,14 +30,16 @@ public class Projectile : MonoBehaviour
         {
             return;
         }
-        hit.takeDamage(damage);
-        owner.reportDealtDamage(damage);
+        hit.takeDamage(damage, owner);
         Destroy(gameObject);
         return;
     }
 
     public void initialise(Vector2 direction, Fighter newOwner, float newDamage)
     {
+        // set direction for visuals
+        transform.rotation = Quaternion.FromToRotation(new Vector3(transform.position.x, transform.position.y, 0), new Vector3(direction.x, direction.y, 0));
+
         owner = newOwner;
         GetComponent<Rigidbody2D>().AddForce(direction * SPEED);
         damage = newDamage;
