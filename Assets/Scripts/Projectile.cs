@@ -4,8 +4,9 @@ using UnityEngine;
 
 public class Projectile : MonoBehaviour
 {
-    const float SPEED = 250f;
-    const float LIFETIME = 3f;
+    [SerializeField] float speed = 250f;
+    [SerializeField] float lifetime = 3f;
+    [SerializeField] float staggerDuration = 0f;
 
     Fighter owner;
     float damage = 0;
@@ -37,13 +38,14 @@ public class Projectile : MonoBehaviour
 
     public void initialise(Vector2 direction, Fighter newOwner, float newDamage)
     {
+        transform.position = newOwner.transform.position;
         // set direction for visuals
         transform.rotation = Quaternion.FromToRotation(new Vector3(transform.position.x, transform.position.y, 0), new Vector3(direction.x, direction.y, 0));
 
         owner = newOwner;
-        GetComponent<Rigidbody2D>().AddForce(direction * SPEED);
+        GetComponent<Rigidbody2D>().AddForce(direction * speed);
         damage = newDamage;
-        StartCoroutine(destroyInTime(LIFETIME));
+        StartCoroutine(destroyInTime(lifetime));
     }
 
     IEnumerator destroyInTime(float seconds)

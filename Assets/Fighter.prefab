@@ -225,6 +225,9 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   bulletPrefab: {fileID: 6801414537577922766, guid: af13e3cc188bb764895670084ec01718, type: 3}
+  quickAttackPrefab: {fileID: 5649678175637416668, guid: 8ae9a77d7c97fa9e6aeb7294ccb03e45, type: 3}
+  heavyAttackPrefab: {fileID: 0}
+  wideAttackPrefab: {fileID: 0}
   shieldVisual: {fileID: 5962278882191398490}
 --- !u!58 &7029889613579042401
 CircleCollider2D:

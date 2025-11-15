@@ -19,7 +19,7 @@ public class Fighter : MonoBehaviour, IComparable
     const float HEAVY_ENERGY_COST = 10f;
     const float LIGHT_RECHARGE = 0.5f;
     const float HEAVY_RECHARGE = LIGHT_RECHARGE * 3f;
-    const float BLOCK_DMG_RESIST = 0.6f;
+    const float BLOCK_DMG_RESIST = 0.8f;
     float currentRechargeLeft = 0f;
 
     const float LIGHT_DAMAGE = 10f;
@@ -34,6 +34,9 @@ public class Fighter : MonoBehaviour, IComparable
     bool feintedThisBattle = false;
 
     [SerializeField] GameObject bulletPrefab;
+    [SerializeField] GameObject quickAttackPrefab;
+    [SerializeField] GameObject heavyAttackPrefab;
+    [SerializeField] GameObject wideAttackPrefab;
     [SerializeField] GameObject shieldVisual;
 
     bool currentlyBlocking = false;
@@ -342,7 +345,6 @@ public class Fighter : MonoBehaviour, IComparable
     {
         GameObject newBullet = Instantiate(bulletPrefab);
         newBullet.GetComponent<Projectile>().initialise(transform.up, this, RANGED_DAMAGE);
-        newBullet.transform.position = transform.position;
 
         // alert to enemy we made this action
         enemyThisFight.perceivedEnemyAction(inputType.hostileRecentlyShot);
@@ -351,7 +353,12 @@ public class Fighter : MonoBehaviour, IComparable
 
     void quickMeleeAttack()
     {
+        GameObject newBullet = Instantiate(quickAttackPrefab);
+        newBullet.GetComponent<Projectile>().initialise(transform.up, this, LIGHT_DAMAGE);
 
+        // alert to enemy we made this action
+        enemyThisFight.perceivedEnemyAction(inputType.hostileRecentlyQuickMelee);
+        thisBattleStats.attackCount++;
     }
 
     void setBlockingStatus(bool setTo)
@@ -376,16 +383,20 @@ public class Fighter : MonoBehaviour, IComparable
         perceivedEnemyAction(inputType.hostileRecentlyHurt);
     }
 
-    public void takeDamage(float damage, Fighter from)
+    public void takeDamage(float damage, Fighter from, float staggerDuration = 0f)
     {
         float modifiedDamage = damage;
+        float takeStagger = staggerDuration;
         if (currentlyBlocking)
         {
             modifiedDamage *= BLOCK_DMG_RESIST;
             from.perceivedEnemyAction(inputType.hostileRecentlyBlockedMyShot);
+            takeStagger = 0f;
         }
         currentHp -= modifiedDamage;
         thisBattleStats.damageReceived += modifiedDamage;
+        currentRechargeLeft = Mathf.Max(staggerDuration, currentRechargeLeft);
+        // TODO make it yellow to denote stunned or something
         perceivedEnemyAction(inputType.recentlyHurt);
         from.reportDealtDamage(modifiedDamage);
         checkDefeat();
