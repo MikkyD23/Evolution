@@ -99,4 +99,19 @@ public class Node
         }
         return accList;
     }
+
+    public float weightForNode(Node forNode)
+    {
+        return nodeWeightDictionary()[forNode];
+    }
+
+    public Dictionary<Node, float> nodeWeightDictionary()
+    {
+        Dictionary<Node, float> acc = new();
+        foreach (InputWeight iW in inputWeights)
+        {
+            acc.Add(iW.node, iW.weight);
+        }
+        return acc;
+    }
 }

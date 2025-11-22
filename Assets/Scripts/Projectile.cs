@@ -1,6 +1,7 @@
 using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
+using static UnityEngine.GraphicsBuffer;
 
 public class Projectile : MonoBehaviour
 {
@@ -40,7 +41,9 @@ public class Projectile : MonoBehaviour
     {
         transform.position = newOwner.transform.position;
         // set direction for visuals
-        transform.rotation = Quaternion.FromToRotation(new Vector3(transform.position.x, transform.position.y, 0), new Vector3(direction.x, direction.y, 0));
+
+        // https://discussions.unity.com/t/lookat-2d-equivalent/88118
+        transform.up = (Vector3)direction;
 
         owner = newOwner;
         GetComponent<Rigidbody2D>().AddForce(direction * speed);

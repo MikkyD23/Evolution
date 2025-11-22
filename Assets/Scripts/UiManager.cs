@@ -1,9 +1,17 @@
 using TMPro;
 using UnityEngine;
+using System.Collections;
+using System.Collections.Generic;
 
 public class UiManager : MonoBehaviour
 {
-    [SerializeField] TextMeshProUGUI HeaderText;
+    [SerializeField] TextMeshProUGUI headerText;
+    [SerializeField] RectTransform nodeVisualsTab;
+    [SerializeField] GameObject diagramNodePrefab;
+    [SerializeField] RectTransform columnHolder;
+    [SerializeField] GameObject diagramNodeColumnPrefab;
+
+    List<GameObject> diagramColumns = new();
 
     float MAX_PAN = 2f;
     float PAN_SPEED = 0.3f;
@@ -27,6 +35,12 @@ public class UiManager : MonoBehaviour
 
     public void updateGenerationText(int number)
     {
-        HeaderText.text = $"G: {number}";
+        //headerText.text = $"G: {number}";
+    }
+
+    public void toggleNetworkVisual()
+    {
+        // on UI button press
+        nodeVisualsTab.gameObject.SetActive(!nodeVisualsTab.gameObject.activeSelf);
     }
 }

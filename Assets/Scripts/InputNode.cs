@@ -28,8 +28,12 @@ public class InputNode : Node
         return new();
     }
 
-    public string inputType()
+    public string inputTypeSerial()
     {
         return forInputType.ToString();
+    }
+    public Fighter.inputType inputType()
+    {
+        return forInputType;
     }
 }

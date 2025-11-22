@@ -1,7 +1,6 @@
 using System;
 using System.Collections;
 using System.Collections.Generic;
-using System.Linq;
 using UnityEngine;
 
 public class Fighter : MonoBehaviour, IComparable
@@ -355,6 +354,8 @@ public class Fighter : MonoBehaviour, IComparable
     {
         GameObject newBullet = Instantiate(quickAttackPrefab);
         newBullet.GetComponent<Projectile>().initialise(transform.up, this, LIGHT_DAMAGE);
+
+        // TODO maybe use slash hitbox check instead because it's more interesting
 
         // alert to enemy we made this action
         enemyThisFight.perceivedEnemyAction(inputType.hostileRecentlyQuickMelee);

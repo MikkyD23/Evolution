@@ -6,6 +6,7 @@ using System.Text;
 using System.Xml.Serialization;
 using Unity.VisualScripting;
 using UnityEngine;
+using UnityEngine.Assertions;
 
 public class NodeManaging
 {
@@ -17,7 +18,7 @@ public class NodeManaging
     public static List<Node> generateNetwork(List<int> intermediaryNodesForLayers, Fighter forFighter)
     {
         List<InputNode> inputNodes = new();
-        Fighter.inputType[] inputTypes = (Fighter.inputType[])Enum.GetValues(typeof(Fighter.inputType));
+        Fighter.inputType[] inputTypes = new NodeManaging().inputTypesList();
         // always generate same amount of input and output notes (quantity of enum values)
         foreach (Fighter.inputType input in inputTypes)
         {
@@ -125,7 +126,7 @@ public class NodeManaging
             }
             if(n is InputNode)
             {
-                addToAcc.forInputType = (n as InputNode).inputType();
+                addToAcc.forInputType = (n as InputNode).inputTypeSerial();
             }
             acc.Add(addToAcc);
         }
@@ -189,5 +190,68 @@ public class NodeManaging
                 n.recalculateOutputting();
             }
         }
+    }
+
+
+    public float nodeWeightStat(List<Node> outputLayer, Fighter.inputType forInput)
+    {
+        return 0;
+        List<List<Node>> layers = allNodeLayers(outputLayer);
+        // find the desired input node
+        Node inputNode = null;
+        foreach (Node n in layers[0])
+        {
+            if ((n is InputNode) && (n as InputNode).inputType() == forInput)
+            {
+                inputNode = n;
+                break;
+            }
+        }
+        Assert.IsNotNull(inputNode);
+
+        List<List<Node>> nextLayers = new();
+        nextLayers.AddRange(layers);
+        int lastIndex = layers.Count - 1;
+        nextLayers.RemoveAt(lastIndex);
+        Fighter.inputType[] inputs = inputTypesList();
+        foreach (Node outputNode in outputLayer)
+        {
+            //return networkWeightForNode(outputNode, inputNode, nextLayers);
+
+
+        }
+    }
+
+    float networkWeightForNode(Node fromNode, Node toNode, List<List<Node>> remainingLayers)
+    {
+        // case of previous layer containing input node itself
+        if (remainingLayers.Count == 1)
+        {
+            // return weight to node directly
+            return fromNode.weightForNode(toNode);
+        }
+        // case of it being an intermediate layer
+        else
+        {
+            List<List<Node>> nextLayers = new();
+            nextLayers.AddRange(remainingLayers);
+            int lastIndex = remainingLayers.Count - 1;
+            nextLayers.RemoveAt(lastIndex);
+            List<Node> lastLayer = remainingLayers[lastIndex];
+
+            float weightSum = 0;
+            foreach (Node n in lastLayer)
+            {
+                float weightMult = networkWeightForNode(n, toNode, nextLayers);
+                weightSum += (weightMult * fromNode.weightForNode(n));
+                // this is fucked, no way it's correct
+            }
+            return weightSum;
+        }
+    }
+
+    Fighter.inputType[] inputTypesList()
+    {
+        return (Fighter.inputType[])Enum.GetValues(typeof(Fighter.inputType));
     }
 }
